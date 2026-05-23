@@ -112,6 +112,35 @@ interface NotificationItem {
   time: string;
 }
 
+const PIXEL_AVATARS: { [key: string]: any } = {
+  'robo': require('@/assets/images/robo.png'),
+  'homem-1': require('@/assets/images/homem-1.png'),
+  'homem-2': require('@/assets/images/homem-2.png'),
+  'homem-3': require('@/assets/images/homem-3.png'),
+  'mulher-1': require('@/assets/images/mulher-1.png'),
+  'mulher-2': require('@/assets/images/mulher-2.png'),
+  'mulher-3': require('@/assets/images/mulher-3.png'),
+};
+
+const NOTIFICATION_ICONS: { [key: string]: any } = {
+  '📢': require('@/assets/images/alto-falante.png'),
+  '🦈': require('@/assets/images/tubarao-pixel.png'),
+};
+
+const renderAvatarHelper = (avatar: string | undefined, currentRole: string, size: number = 34) => {
+  if (avatar && PIXEL_AVATARS[avatar]) {
+    return <Image source={PIXEL_AVATARS[avatar]} style={{ width: size, height: size, borderRadius: size / 2 }} />;
+  }
+  if (avatar ? (avatar.startsWith('http') || avatar.startsWith('file') || avatar.startsWith('data:image')) : false) {
+    return <Image source={{ uri: avatar }} style={{ width: size, height: size, borderRadius: size / 2 }} />;
+  }
+  return (
+    <Text style={{ fontSize: size * 0.52, textAlign: 'center' }}>
+      {avatar || (currentRole === 'admin' ? '👩‍💻' : currentRole === 'lider' ? '⚡' : '🎓')}
+    </Text>
+  );
+};
+
 export function UserProfileHeader() {
   const { session, logout } = useContext(AuthContext);
   const colorScheme = useColorScheme();
@@ -212,17 +241,7 @@ export function UserProfileHeader() {
           ]}
         >
           <View style={[styles.avatarFrame, { borderColor: theme.primary }]}>
-            {session.avatar ? (
-              (session.avatar.startsWith('http') || session.avatar.startsWith('file') || session.avatar.startsWith('data:image')) ? (
-                <Image source={{ uri: session.avatar }} style={styles.headerAvatarImage} />
-              ) : (
-                <Text style={{ fontSize: 20 }}>{session.avatar}</Text>
-              )
-            ) : (
-              <Text style={{ fontSize: 20 }}>
-                {currentRole === 'admin' ? '👩‍💻' : currentRole === 'lider' ? '⚡' : '🎓'}
-              </Text>
-            )}
+            {renderAvatarHelper(session.avatar, currentRole, 34)}
           </View>
         </Pressable>
 
@@ -273,7 +292,11 @@ export function UserProfileHeader() {
               <ScrollView style={{ maxHeight: 220 }} showsVerticalScrollIndicator={false}>
                 {notifications.map((item) => (
                   <View key={item.id} style={styles.notifRow}>
-                    <Text style={styles.notifIcon}>{item.icon}</Text>
+                    {NOTIFICATION_ICONS[item.icon] ? (
+                      <Image source={NOTIFICATION_ICONS[item.icon]} style={{ width: 34, height: 34, marginTop: 2, resizeMode: 'contain' }} />
+                    ) : (
+                      <Text style={styles.notifIcon}>{item.icon}</Text>
+                    )}
                     <View style={{ flex: 1 }}>
                       <Text style={[styles.notifTitle, { color: theme.text }]} numberOfLines={1}>
                         {item.title}
@@ -352,17 +375,7 @@ export function UserProfileHeader() {
               {/* Header Profile and Greetings Row */}
               <View style={styles.greetingHeaderRow}>
                 <View style={[styles.popoverAvatarFrame, { borderColor: theme.primary }]}>
-                  {session.avatar ? (
-                    (session.avatar.startsWith('http') || session.avatar.startsWith('file') || session.avatar.startsWith('data:image')) ? (
-                      <Image source={{ uri: session.avatar }} style={styles.popoverAvatarImage} />
-                    ) : (
-                      <Text style={{ fontSize: 28 }}>{session.avatar}</Text>
-                    )
-                  ) : (
-                    <Text style={{ fontSize: 28 }}>
-                      {currentRole === 'admin' ? '👩‍💻' : currentRole === 'lider' ? '⚡' : '🎓'}
-                    </Text>
-                  )}
+                  {renderAvatarHelper(session.avatar, currentRole, 48)}
                 </View>
                 
                 <View style={{ flex: 1 }}>

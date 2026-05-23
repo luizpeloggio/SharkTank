@@ -195,9 +195,10 @@ export default function SharkTankScreen() {
           
           {/* SYMPLA SYMPLA EVENTO PANEL */}
           <View style={[styles.eventCard, { backgroundColor: theme.backgroundElement, borderColor: theme.border, borderWidth: 1 }]}>
-            <View style={[styles.eventBadge, { backgroundColor: theme.primary }]}>
+            <View style={[styles.eventBadge, { backgroundColor: theme.primary, flexDirection: 'row', alignItems: 'center', gap: 6 }]}>
+              <Image source={require('@/assets/images/tubarao-pixel.png')} style={{ width: 18, height: 18, resizeMode: 'contain' }} />
               <ThemedText type="code" style={{ color: '#FFFFFF', fontWeight: 'bold' }}>
-                🦈 EVENTO EXCLUSIVO UERN
+                EVENTO EXCLUSIVO UERN
               </ThemedText>
             </View>
             
@@ -205,9 +206,15 @@ export default function SharkTankScreen() {
               Shark Tank UERN 2026
             </ThemedText>
             
-            <ThemedText type="small" style={[styles.eventMeta, { color: theme.textSecondary }]}>
-              📍 Auditório Central, Campus Mossoró • 📅 15 de Junho, 19:00
-            </ThemedText>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', flexWrap: 'wrap', marginTop: Spacing.one }}>
+              <ThemedText type="small" style={{ color: theme.textSecondary }}>
+                📍 Auditório Central, Campus Mossoró •{" "}
+              </ThemedText>
+              <Image source={require('@/assets/images/calendario.png')} style={{ width: 26, height: 26, resizeMode: 'contain' }} />
+              <ThemedText type="small" style={{ color: theme.textSecondary }}>
+                {" "}15 de Junho, 19:00
+              </ThemedText>
+            </View>
 
             {/* Countdown timer */}
             <View style={styles.timerRow}>
@@ -234,20 +241,24 @@ export default function SharkTankScreen() {
 
             {/* Inscription Action */}
             <Pressable 
-              style={[styles.enrollCta, { backgroundColor: theme.primary }]}
+              style={[styles.enrollCta, { backgroundColor: theme.primary, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }]}
               onPress={() => setIsEnrollModalVisible(true)}
             >
+              <Image source={require('@/assets/images/foguete-1.png')} style={{ width: 22, height: 22, resizeMode: 'contain' }} />
               <ThemedText type="smallBold" style={styles.enrollCtaText}>
-                🚀 Inscrever Minha Startup / Projeto
+                Inscrever Minha Startup / Projeto
               </ThemedText>
             </Pressable>
           </View>
 
           {/* JURADOS CAROUSEL */}
           <View style={styles.sectionContainer}>
-            <ThemedText type="smallBold" style={[styles.sectionTitle, { color: theme.text }]}>
-              🦈 Os Tubarões
-            </ThemedText>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: Spacing.two }}>
+              <Image source={require('@/assets/images/tubarao-pixel.png')} style={{ width: 22, height: 22, resizeMode: 'contain' }} />
+              <ThemedText type="smallBold" style={[styles.sectionTitle, { color: theme.text, marginBottom: 0 }]}>
+                Os Tubarões
+              </ThemedText>
+            </View>
             
             <FlatList
               horizontal
@@ -319,7 +330,7 @@ export default function SharkTankScreen() {
                               resizeMode="cover" 
                             />
                           ) : (
-                            <ThemedText style={{ fontSize: 24 }}>{proj.logo || '🚀'}</ThemedText>
+                            <Image source={require('@/assets/images/foguete-1.png')} style={{ width: 38, height: 38, resizeMode: 'contain' }} />
                           )}
                         </View>
                         <View style={{ flex: 1 }}>
@@ -348,9 +359,14 @@ export default function SharkTankScreen() {
                         ]}
                         onPress={() => handleVote(proj.id)}
                       >
-                        <ThemedText type="code" style={[styles.voteBtnText, { color: voted ? '#FFFFFF' : theme.textSecondary }]}>
-                          {voted ? 'Votado ✓' : 'Votar 🦈'}
-                        </ThemedText>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                          <ThemedText type="code" style={[styles.voteBtnText, { color: voted ? '#FFFFFF' : theme.textSecondary }]}>
+                            {voted ? 'Votado ✓' : 'Votar'}
+                          </ThemedText>
+                          {!voted && (
+                            <Image source={require('@/assets/images/tubarao-pixel.png')} style={{ width: 14, height: 14, resizeMode: 'contain' }} />
+                          )}
+                        </View>
                       </Pressable>
                     </View>
 
@@ -493,11 +509,12 @@ export default function SharkTankScreen() {
               {/* Footer */}
               <View style={[styles.modalFooter, { borderTopColor: theme.border, borderTopWidth: 1 }]}>
                 <Pressable 
-                  style={[styles.publishBtn, { backgroundColor: theme.primary }]}
+                  style={[styles.publishBtn, { backgroundColor: theme.primary, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }]}
                   onPress={handleEnrollProject}
                 >
+                  <Image source={require('@/assets/images/tubarao-pixel.png')} style={{ width: 18, height: 18, resizeMode: 'contain', tintColor: '#FFF' }} />
                   <ThemedText type="smallBold" style={styles.publishBtnText}>
-                    🦈 Submeter Inscrição
+                    Submeter Inscrição
                   </ThemedText>
                 </Pressable>
               </View>

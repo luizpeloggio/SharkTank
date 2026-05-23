@@ -163,7 +163,17 @@ export function RadarPattern() {
   );
 }
 
-const PRESET_AVATARS = ['🎓', '💼', '⚡', '🦊', '🚀', '👾', '🦄', '🦁', '🐯', '🐼', '🤖', '🎨', '🎸', '🥑'];
+const PIXEL_AVATARS: { [key: string]: any } = {
+  'robo': require('@/assets/images/robo.png'),
+  'homem-1': require('@/assets/images/homem-1.png'),
+  'homem-2': require('@/assets/images/homem-2.png'),
+  'homem-3': require('@/assets/images/homem-3.png'),
+  'mulher-1': require('@/assets/images/mulher-1.png'),
+  'mulher-2': require('@/assets/images/mulher-2.png'),
+  'mulher-3': require('@/assets/images/mulher-3.png'),
+};
+
+const PRESET_AVATARS = ['robo', 'homem-1', 'homem-2', 'homem-3', 'mulher-1', 'mulher-2', 'mulher-3'];
 
 const getValidationStatus = (text: string) => {
   return {
@@ -709,26 +719,28 @@ export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
                   <Text style={[styles.avatarPickerSub, { color: theme.textSecondary }]}>Escolha um avatar ou escolha da galeria:</Text>
                   
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.avatarPresetsList}>
-                    {PRESET_AVATARS.map((emoji, index) => (
+                    {PRESET_AVATARS.map((avatarName, index) => (
                       <Pressable
                         key={index}
                         style={[
                           styles.avatarPresetBtn,
-                          { backgroundColor: theme.backgroundElement, borderColor: theme.border },
-                          avatar === emoji && { borderColor: theme.primary, backgroundColor: theme.backgroundSelected }
+                          { backgroundColor: theme.backgroundElement, borderColor: theme.border, overflow: 'hidden', justifyContent: 'center', alignItems: 'center' },
+                          avatar === avatarName && { borderColor: theme.primary, backgroundColor: theme.backgroundSelected }
                         ]}
-                        onPress={() => setAvatar(emoji)}>
-                        <Text style={styles.avatarPresetText}>{emoji}</Text>
+                        onPress={() => setAvatar(avatarName)}>
+                        <Image source={PIXEL_AVATARS[avatarName]} style={{ width: 34, height: 34, borderRadius: 17 }} />
                       </Pressable>
                     ))}
                   </ScrollView>
 
                   <View style={styles.customUploadRow}>
-                    {avatar && (avatar.startsWith('http') || avatar.startsWith('file') || avatar.startsWith('data:image')) ? (
+                    {avatar && PIXEL_AVATARS[avatar] ? (
+                      <Image source={PIXEL_AVATARS[avatar]} style={[styles.customAvatarPreview, { borderColor: theme.primary }]} />
+                    ) : avatar && (avatar.startsWith('http') || avatar.startsWith('file') || avatar.startsWith('data:image')) ? (
                       <Image source={{ uri: avatar }} style={[styles.customAvatarPreview, { borderColor: theme.primary }]} />
                     ) : (
                       <View style={[styles.customAvatarPlaceholder, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
-                        <Text style={{ fontSize: 24 }}>{avatar || '👤'}</Text>
+                        <Text style={{ fontSize: 24 }}>{avatar && !PIXEL_AVATARS[avatar] && !avatar.startsWith('http') ? avatar : '👤'}</Text>
                       </View>
                     )}
                     

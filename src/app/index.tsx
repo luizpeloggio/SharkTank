@@ -9,6 +9,7 @@ import {
   TextInput,
   Alert,
   FlatList,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppStorage, FeedPost, UserRole } from '@/services/storage';
@@ -244,9 +245,12 @@ export default function FeedScreen() {
             }}
             onPress={() => setActiveView('feed')}
           >
-            <ThemedText type="smallBold" style={{ color: activeView === 'feed' ? '#FFF' : theme.text }}>
-              📰 Mural de Notícias
-            </ThemedText>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+              <Image source={require('@/assets/images/celular.png')} style={{ width: 28, height: 28, resizeMode: 'contain' }} />
+              <ThemedText type="smallBold" style={{ color: activeView === 'feed' ? '#FFF' : theme.text }}>
+                Mural de Notícias
+              </ThemedText>
+            </View>
           </Pressable>
 
           <Pressable
@@ -273,7 +277,7 @@ export default function FeedScreen() {
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterScroll}>
                 {(['todos', 'vaga', 'evento', 'noticia'] as const).map(filter => {
                   const isActive = selectedFilter === filter;
-                  const label = filter === 'todos' ? 'Todos' : filter === 'vaga' ? '💼 Vagas' : filter === 'evento' ? '📅 Eventos' : '📰 Notícias';
+                  const textColor = isActive ? '#FFFFFF' : theme.textSecondary;
                   
                   return (
                     <Pressable
@@ -284,18 +288,27 @@ export default function FeedScreen() {
                           backgroundColor: isActive ? theme.primary : theme.backgroundElement,
                           borderColor: isActive ? theme.primary : theme.border,
                           borderWidth: 1,
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          gap: 6,
                         }
                       ]}
                       onPress={() => setSelectedFilter(filter)}
                     >
+                      {filter === 'evento' && (
+                        <Image source={require('@/assets/images/calendario.png')} style={{ width: 26, height: 26, resizeMode: 'contain' }} />
+                      )}
+                      {filter === 'noticia' && (
+                        <Image source={require('@/assets/images/celular.png')} style={{ width: 26, height: 26, resizeMode: 'contain' }} />
+                      )}
                       <ThemedText 
                         type="smallBold" 
                         style={[
                           styles.chipText,
-                          { color: isActive ? '#FFFFFF' : theme.textSecondary }
+                          { color: textColor }
                         ]}
                       >
-                        {label}
+                        {filter === 'todos' ? 'Todos' : filter === 'vaga' ? '💼 Vagas' : filter === 'evento' ? 'Eventos' : 'Notícias'}
                       </ThemedText>
                     </Pressable>
                   );
@@ -352,8 +365,14 @@ export default function FeedScreen() {
                         {/* Category Tag */}
                         <View style={[
                           styles.tagBadge, 
-                          { backgroundColor: colors.bg, borderColor: colors.border }
+                          { backgroundColor: colors.bg, borderColor: colors.border, flexDirection: 'row', alignItems: 'center', gap: 4 }
                         ]}>
+                          {item.category === 'evento' && (
+                            <Image source={require('@/assets/images/calendario.png')} style={{ width: 22, height: 22, resizeMode: 'contain' }} />
+                          )}
+                          {item.category === 'noticia' && (
+                            <Image source={require('@/assets/images/celular.png')} style={{ width: 22, height: 22, resizeMode: 'contain' }} />
+                          )}
                           <ThemedText type="code" style={[styles.tagText, { color: colors.text }]}>
                             {item.tag}
                           </ThemedText>
@@ -518,7 +537,7 @@ export default function FeedScreen() {
                 <View style={styles.categorySelectRow}>
                   {(['noticia', 'vaga', 'evento'] as const).map(cat => {
                     const isSel = newCategory === cat;
-                    const nameMap = { noticia: '📰 Notícia', vaga: '💼 Vaga', evento: '📅 Evento' };
+                    const textColor = isSel ? theme.primary : theme.textSecondary;
                     
                     return (
                       <Pressable
@@ -529,12 +548,25 @@ export default function FeedScreen() {
                             backgroundColor: isSel ? theme.backgroundSelected : theme.background,
                             borderColor: isSel ? theme.primary : theme.border,
                             borderWidth: 1,
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: 4,
                           }
                         ]}
                         onPress={() => setNewCategory(cat)}
                       >
-                        <ThemedText type="code" style={[styles.catChoiceText, { color: isSel ? theme.primary : theme.textSecondary }]}>
-                          {nameMap[cat]}
+                        {cat === 'evento' && (
+                          <Image source={require('@/assets/images/calendario.png')} style={{ width: 24, height: 24, resizeMode: 'contain' }} />
+                        )}
+                        {cat === 'noticia' && (
+                          <Image source={require('@/assets/images/celular.png')} style={{ width: 24, height: 24, resizeMode: 'contain' }} />
+                        )}
+                        {cat === 'vaga' && (
+                          <ThemedText type="code" style={{ color: textColor }}>💼 </ThemedText>
+                        )}
+                        <ThemedText type="code" style={[styles.catChoiceText, { color: textColor }]}>
+                          {cat === 'noticia' ? 'Notícia' : cat === 'vaga' ? 'Vaga' : 'Evento'}
                         </ThemedText>
                       </Pressable>
                     );
@@ -643,11 +675,22 @@ export default function FeedScreen() {
                     }}
                   >
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                      <ThemedText type="smallBold" style={{ color: theme.text, fontSize: 13 }}>
-                        {item.title}
-                      </ThemedText>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
+                        {item.title.startsWith('🦈') ? (
+                          <>
+                            <Image source={require('@/assets/images/tubarao-pixel.png')} style={{ width: 16, height: 16, resizeMode: 'contain' }} />
+                            <ThemedText type="smallBold" style={{ color: theme.text, fontSize: 13, flex: 1 }}>
+                              {item.title.replace('🦈', '').trim()}
+                            </ThemedText>
+                          </>
+                        ) : (
+                          <ThemedText type="smallBold" style={{ color: theme.text, fontSize: 13, flex: 1 }}>
+                            {item.title}
+                          </ThemedText>
+                        )}
+                      </View>
                       {item.unread && (
-                        <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#EF4444' }} />
+                        <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#EF4444', marginLeft: 6 }} />
                       )}
                     </View>
                     <ThemedText type="small" style={{ color: theme.textSecondary }}>

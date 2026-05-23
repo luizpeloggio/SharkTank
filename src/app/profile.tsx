@@ -9,7 +9,10 @@ import {
   Image,
   Modal,
   Switch,
+  TextInput,
+  Text,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useColorScheme, setThemePreference } from '@/hooks/use-color-scheme';
 import * as ImagePicker from 'expo-image-picker';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -22,7 +25,31 @@ import { useTheme } from '@/hooks/use-theme';
 import { AuthContext } from './_layout';
 import { UserProfileHeader } from '@/components/user-profile-header';
 
-const PRESET_AVATARS = ['🎓', '💼', '⚡', '🦊', '🚀', '👾', '🦄', '🦁', '🐯', '🐼', '🤖', '🎨', '🎸', '🥑'];
+const PIXEL_AVATARS: { [key: string]: any } = {
+  'robo': require('@/assets/images/robo.png'),
+  'homem-1': require('@/assets/images/homem-1.png'),
+  'homem-2': require('@/assets/images/homem-2.png'),
+  'homem-3': require('@/assets/images/homem-3.png'),
+  'mulher-1': require('@/assets/images/mulher-1.png'),
+  'mulher-2': require('@/assets/images/mulher-2.png'),
+  'mulher-3': require('@/assets/images/mulher-3.png'),
+};
+
+const PRESET_AVATARS = ['robo', 'homem-1', 'homem-2', 'homem-3', 'mulher-1', 'mulher-2', 'mulher-3'];
+
+const renderAvatarHelper = (avatar: string | undefined, currentRole: string, size: number = 64) => {
+  if (avatar && PIXEL_AVATARS[avatar]) {
+    return <Image source={PIXEL_AVATARS[avatar]} style={{ width: size, height: size, borderRadius: size / 2 }} />;
+  }
+  if (avatar ? (avatar.startsWith('http') || avatar.startsWith('file') || avatar.startsWith('data:image')) : false) {
+    return <Image source={{ uri: avatar }} style={{ width: size, height: size, borderRadius: size / 2 }} />;
+  }
+  return (
+    <ThemedText style={{ fontSize: size * 0.56, textAlign: 'center' }}>
+      {avatar || (currentRole === 'admin' ? '👩‍💻' : currentRole === 'lider' ? '⚡' : '🎓')}
+    </ThemedText>
+  );
+};
 
 const DayNightSwitch = ({ value, onValueChange }: { value: boolean; onValueChange: (v: boolean) => void }) => {
   if (Platform.OS === 'web') {
@@ -128,6 +155,56 @@ const DayNightSwitch = ({ value, onValueChange }: { value: boolean; onValueChang
   );
 };
 
+const getValidationStatus = (text: string) => {
+  return {
+    hasUpperCase: /[A-Z]/.test(text),
+    hasLowerCase: /[a-z]/.test(text),
+    hasNumber: /[0-9]/.test(text),
+    hasSpecialChar: /[!@#$%^&*(),.?":{}|<>]/.test(text),
+  };
+};
+
+function StrengthIndicator({ text }: { text: string }) {
+  const theme = useTheme();
+  const status = getValidationStatus(text);
+  const rules = [
+    { label: 'Letra maiúscula (A-Z)', met: status.hasUpperCase },
+    { label: 'Letra minúscula (a-z)', met: status.hasLowerCase },
+    { label: 'Número (0-9)', met: status.hasNumber },
+    { label: 'Caractere especial (ex: @, #, $, %)', met: status.hasSpecialChar },
+  ];
+
+  return (
+    <View style={{
+      marginTop: Spacing.two,
+      padding: Spacing.three,
+      borderRadius: 8,
+      backgroundColor: theme.background,
+      borderWidth: 1,
+      borderColor: theme.border,
+      gap: Spacing.one
+    }}>
+      {rules.map((rule, index) => (
+        <View key={index} style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.two }}>
+          <Text style={{
+            fontSize: 11,
+            fontWeight: 'bold',
+            color: rule.met ? '#22C55E' : theme.textSecondary
+          }}>
+            {rule.met ? '✓' : '○'}
+          </Text>
+          <Text style={{
+            fontSize: 11,
+            color: rule.met ? '#22C55E' : theme.textSecondary
+          }}>
+            {rule.label}
+          </Text>
+        </View>
+      ))}
+    </View>
+  );
+}
+
 export default function ProfileScreen() {
   const theme = useTheme();
   const { session, logout, updateSession } = useContext(AuthContext);
@@ -148,6 +225,121 @@ export default function ProfileScreen() {
   const [votesCastDisplay, setVotesCastDisplay] = useState<number>(0);
   const [isAvatarModalVisible, setIsAvatarModalVisible] = useState(false);
   const [selectedAvatar, setSelectedAvatar] = useState(session?.avatar || '');
+
+  const [editUsername, setEditUsername] = useState(session?.username || '');
+  const [editName, setEditName] = useState(session?.name || '');
+  const [isSavingDetails, setIsSavingDetails] = useState(false);
+  const [isEditSectionOpen, setIsEditSectionOpen] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [isSavingName, setIsSavingName] = useState(false);
+  const [isSavingUsername, setIsSavingUsername] = useState(false);
+  const [isSavingPassword, setIsSavingPassword] = useState(false);
+
+  useEffect(() => {
+    if (session) {
+      setEditUsername(session.username || '');
+      setEditName(session.name || '');
+    }
+  }, [session]);
+
+  const handleSaveName = async () => {
+    if (!session) return;
+    if (!editName.trim()) {
+      const msg = 'O nome completo não pode ficar vazio.';
+      if (Platform.OS === 'web') alert(msg);
+      else Alert.alert('Erro ⚠️', msg);
+      return;
+    }
+    setIsSavingName(true);
+    try {
+      const updated = { ...session, name: editName.trim() };
+      await updateSession(updated);
+      const successMsg = 'Nome completo atualizado com sucesso! ✨';
+      if (Platform.OS === 'web') alert(successMsg);
+      else Alert.alert('Sucesso! 👤', successMsg);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsSavingName(false);
+    }
+  };
+
+  const handleSaveUsername = async () => {
+    if (!session) return;
+    if (!editUsername.trim()) {
+      const msg = 'O nome de usuário não pode ficar vazio.';
+      if (Platform.OS === 'web') alert(msg);
+      else Alert.alert('Erro ⚠️', msg);
+      return;
+    }
+    const isStrengthValid = (text: string) => {
+      const hasUpper = /[A-Z]/.test(text);
+      const hasLower = /[a-z]/.test(text);
+      const hasDigit = /[0-9]/.test(text);
+      const hasSpecial = /[!@#$%^&*(),.?":{}|<>]/.test(text);
+      return hasUpper && hasLower && hasDigit && hasSpecial;
+    };
+    if (!isStrengthValid(editUsername)) {
+      const msg = 'O Nome de Usuário deve conter letras maiúsculas, minúsculas, números e caracteres especiais.';
+      if (Platform.OS === 'web') alert(msg);
+      else Alert.alert('Nome de Usuário Fraco ⚠️', msg);
+      return;
+    }
+    setIsSavingUsername(true);
+    try {
+      const updated = { ...session, username: editUsername.trim() };
+      await updateSession(updated);
+      const successMsg = 'Nome de usuário atualizado com sucesso! ✨';
+      if (Platform.OS === 'web') alert(successMsg);
+      else Alert.alert('Sucesso! 🌐', successMsg);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsSavingUsername(false);
+    }
+  };
+
+  const handleSavePassword = async () => {
+    if (!currentPassword || !newPassword) {
+      const msg = 'Por favor, preencha todos os campos de senha.';
+      if (Platform.OS === 'web') alert(msg);
+      else Alert.alert('Erro ⚠️', msg);
+      return;
+    }
+    if (currentPassword.length < 6) {
+      const msg = 'A senha atual deve ter no mínimo 6 caracteres.';
+      if (Platform.OS === 'web') alert(msg);
+      else Alert.alert('Erro ⚠️', msg);
+      return;
+    }
+    const isStrengthValid = (text: string) => {
+      const hasUpper = /[A-Z]/.test(text);
+      const hasLower = /[a-z]/.test(text);
+      const hasDigit = /[0-9]/.test(text);
+      const hasSpecial = /[!@#$%^&*(),.?":{}|<>]/.test(text);
+      return hasUpper && hasLower && hasDigit && hasSpecial;
+    };
+    if (!isStrengthValid(newPassword)) {
+      const msg = 'A Nova Senha deve conter letras maiúsculas, minúsculas, números e caracteres especiais.';
+      if (Platform.OS === 'web') alert(msg);
+      else Alert.alert('Senha Fraca ⚠️', msg);
+      return;
+    }
+    setIsSavingPassword(true);
+    try {
+      await AsyncStorage.setItem('@uern_impactoej_password', newPassword);
+      setCurrentPassword('');
+      setNewPassword('');
+      const successMsg = 'Sua senha foi alterada com sucesso! 🔒';
+      if (Platform.OS === 'web') alert(successMsg);
+      else Alert.alert('Sucesso! ✨', successMsg);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsSavingPassword(false);
+    }
+  };
 
   // Easing function for smoother counting
   const animateCount = (targetValue: number, setDisplayVal: React.Dispatch<React.SetStateAction<number>>) => {
@@ -313,25 +505,18 @@ export default function ProfileScreen() {
                 onPress={() => setIsAvatarModalVisible(true)}
               >
                 <View style={[styles.avatarCircle, { backgroundColor: theme.background, borderColor: theme.primary }]}>
-                  {session?.avatar ? (
-                    (session.avatar.startsWith('http') || session.avatar.startsWith('file') || session.avatar.startsWith('data:image')) ? (
-                      <Image source={{ uri: session.avatar }} style={styles.avatarImage} />
-                    ) : (
-                      <ThemedText style={{ fontSize: 36 }}>{session.avatar}</ThemedText>
-                    )
-                  ) : (
-                    <ThemedText style={{ fontSize: 36 }}>
-                      {currentRole === 'admin' ? '👩‍💻' : currentRole === 'lider' ? '⚡' : '🎓'}
-                    </ThemedText>
-                  )}
+                  {renderAvatarHelper(session?.avatar, currentRole, 64)}
                   <View style={[styles.editBadge, { backgroundColor: theme.primary, borderColor: theme.border }]}>
                     <ThemedText style={{ fontSize: 10, color: '#FFF' }}>✏️</ThemedText>
                   </View>
                 </View>
               </Pressable>
-              <View>
-                <ThemedText type="subtitle" style={[styles.profileName, { color: theme.text }]}>
-                  {session?.username ? `@${session.username}` : (session?.name || (currentRole === 'admin' ? 'Coordenadora Admin' : currentRole === 'lider' ? 'Presidente Computação EJ' : 'Estudante UERN'))}
+              <View style={{ flex: 1 }}>
+                <ThemedText type="subtitle" style={[styles.profileName, { color: theme.text }]} numberOfLines={1}>
+                  {session?.name || (currentRole === 'admin' ? 'Coordenadora Admin' : currentRole === 'lider' ? 'Presidente Computação EJ' : 'Estudante UERN')}
+                </ThemedText>
+                <ThemedText type="small" style={{ color: theme.primary, fontWeight: 'bold', marginTop: 1 }}>
+                  @{session?.username || 'usuario'}
                 </ThemedText>
                 <ThemedText type="small" style={{ color: theme.textSecondary, marginTop: 2, marginBottom: 4 }}>
                   {session?.email || 'usuario@uern.br'}
@@ -377,7 +562,7 @@ export default function ProfileScreen() {
             </View>
           </View>
 
-          {/* USER DETAILS LOCK */}
+
 
           {/* ADMINISTRATIVE COMMANDS */}
           <View style={styles.sectionContainer}>
@@ -401,6 +586,152 @@ export default function ProfileScreen() {
                   onValueChange={toggleTheme}
                 />
               </View>
+
+              {/* Editar Perfil Option */}
+              <Pressable 
+                style={[styles.optionRow, { borderBottomColor: theme.border }]}
+                onPress={() => setIsEditSectionOpen(!isEditSectionOpen)}
+              >
+                <View style={styles.optionLeft}>
+                  <ThemedText style={{ fontSize: 18 }}>📝</ThemedText>
+                  <View>
+                    <ThemedText type="smallBold" style={{ color: theme.text }}>Editar Perfil</ThemedText>
+                    <ThemedText type="small" style={{ color: theme.textSecondary, fontSize: 11 }}>Gerencie seu nome, usuário e credenciais de acesso</ThemedText>
+                  </View>
+                </View>
+                <ThemedText style={{ color: theme.textSecondary }}>{isEditSectionOpen ? '▼' : '➔'}</ThemedText>
+              </Pressable>
+
+              {isEditSectionOpen && (
+                <View style={{ padding: Spacing.four, gap: Spacing.four, borderBottomWidth: 1, borderBottomColor: theme.border }}>
+                  {/* 1. Nome Completo Card */}
+                  <View style={[styles.optionsList, { backgroundColor: theme.backgroundElement, borderColor: theme.border, borderWidth: 1, padding: Spacing.four, gap: Spacing.three }]}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: Spacing.one }}>
+                      <ThemedText style={{ fontSize: 16 }}>👤</ThemedText>
+                      <ThemedText type="smallBold" style={{ color: theme.text }}>
+                        Alterar Nome Completo
+                      </ThemedText>
+                    </View>
+                    <TextInput
+                      style={[
+                        styles.input,
+                        { backgroundColor: theme.background, borderColor: theme.border, color: theme.text }
+                      ]}
+                      placeholder="Seu nome completo"
+                      placeholderTextColor={theme.textSecondary}
+                      value={editName}
+                      onChangeText={setEditName}
+                    />
+                    <Pressable
+                      style={({ pressed }) => [
+                        styles.detailsSaveBtn,
+                        { backgroundColor: theme.primary, marginTop: Spacing.one },
+                        pressed && { opacity: 0.8 },
+                        isSavingName && { opacity: 0.6 }
+                      ]}
+                      disabled={isSavingName}
+                      onPress={handleSaveName}
+                    >
+                      <ThemedText type="smallBold" style={{ color: '#FFF', fontWeight: 'bold' }}>
+                        {isSavingName ? 'Salvando...' : 'Salvar Nome'}
+                      </ThemedText>
+                    </Pressable>
+                  </View>
+
+                  {/* 2. Nome de Usuário Card */}
+                  <View style={[styles.optionsList, { backgroundColor: theme.backgroundElement, borderColor: theme.border, borderWidth: 1, padding: Spacing.four, gap: Spacing.three }]}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: Spacing.one }}>
+                      <ThemedText style={{ fontSize: 16 }}>🌐</ThemedText>
+                      <ThemedText type="smallBold" style={{ color: theme.text }}>
+                        Alterar Nome de Usuário (@)
+                      </ThemedText>
+                    </View>
+                    <TextInput
+                      style={[
+                        styles.input,
+                        { backgroundColor: theme.background, borderColor: theme.border, color: theme.text }
+                      ]}
+                      placeholder="Ex: Lucas@123"
+                      placeholderTextColor={theme.textSecondary}
+                      autoCapitalize="none"
+                      value={editUsername}
+                      onChangeText={setEditUsername}
+                    />
+                    <StrengthIndicator text={editUsername} />
+                    <Pressable
+                      style={({ pressed }) => [
+                        styles.detailsSaveBtn,
+                        { backgroundColor: theme.primary, marginTop: Spacing.one },
+                        pressed && { opacity: 0.8 },
+                        isSavingUsername && { opacity: 0.6 }
+                      ]}
+                      disabled={isSavingUsername}
+                      onPress={handleSaveUsername}
+                    >
+                      <ThemedText type="smallBold" style={{ color: '#FFF', fontWeight: 'bold' }}>
+                        {isSavingUsername ? 'Salvando...' : 'Salvar Usuário'}
+                      </ThemedText>
+                    </Pressable>
+                  </View>
+
+                  {/* 3. Alterar Senha Card */}
+                  <View style={[styles.optionsList, { backgroundColor: theme.backgroundElement, borderColor: theme.border, borderWidth: 1, padding: Spacing.four, gap: Spacing.three }]}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: Spacing.one }}>
+                      <ThemedText style={{ fontSize: 16 }}>🔒</ThemedText>
+                      <ThemedText type="smallBold" style={{ color: theme.text }}>
+                        Alterar Senha de Acesso
+                      </ThemedText>
+                    </View>
+                    <View style={styles.inputGroup}>
+                      <ThemedText type="small" style={[styles.inputLabel, { color: theme.textSecondary, fontSize: 11 }]}>
+                        Senha Atual
+                      </ThemedText>
+                      <TextInput
+                        style={[
+                          styles.input,
+                          { backgroundColor: theme.background, borderColor: theme.border, color: theme.text }
+                        ]}
+                        placeholder="Sua senha atual"
+                        placeholderTextColor={theme.textSecondary}
+                        secureTextEntry
+                        value={currentPassword}
+                        onChangeText={setCurrentPassword}
+                      />
+                    </View>
+                    <View style={styles.inputGroup}>
+                      <ThemedText type="small" style={[styles.inputLabel, { color: theme.textSecondary, fontSize: 11 }]}>
+                        Nova Senha
+                      </ThemedText>
+                      <TextInput
+                        style={[
+                          styles.input,
+                          { backgroundColor: theme.background, borderColor: theme.border, color: theme.text }
+                        ]}
+                        placeholder="Sua nova senha"
+                        placeholderTextColor={theme.textSecondary}
+                        secureTextEntry
+                        value={newPassword}
+                        onChangeText={setNewPassword}
+                      />
+                    </View>
+                    {newPassword.length > 0 && <StrengthIndicator text={newPassword} />}
+                    <Pressable
+                      style={({ pressed }) => [
+                        styles.detailsSaveBtn,
+                        { backgroundColor: theme.primary, marginTop: Spacing.one },
+                        pressed && { opacity: 0.8 },
+                        isSavingPassword && { opacity: 0.6 }
+                      ]}
+                      disabled={isSavingPassword}
+                      onPress={handleSavePassword}
+                    >
+                      <ThemedText type="smallBold" style={{ color: '#FFF', fontWeight: 'bold' }}>
+                        {isSavingPassword ? 'Salvando...' : 'Salvar Senha'}
+                      </ThemedText>
+                    </Pressable>
+                  </View>
+                </View>
+              )}
               
               {/* Reset Option */}
 
@@ -474,11 +805,15 @@ export default function ProfileScreen() {
               
               {/* Current Preview */}
               <View style={styles.previewContainer}>
-                {selectedAvatar && (selectedAvatar.startsWith('http') || selectedAvatar.startsWith('file') || selectedAvatar.startsWith('data:image')) ? (
+                {selectedAvatar && PIXEL_AVATARS[selectedAvatar] ? (
+                  <Image source={PIXEL_AVATARS[selectedAvatar]} style={[styles.largePreviewImage, { borderColor: theme.primary }]} />
+                ) : selectedAvatar && (selectedAvatar.startsWith('http') || selectedAvatar.startsWith('file') || selectedAvatar.startsWith('data:image')) ? (
                   <Image source={{ uri: selectedAvatar }} style={[styles.largePreviewImage, { borderColor: theme.primary }]} />
                 ) : (
                   <View style={[styles.largePreviewPlaceholder, { backgroundColor: theme.background, borderColor: theme.primary }]}>
-                    <ThemedText style={{ fontSize: 50 }}>{selectedAvatar || '🎓'}</ThemedText>
+                    <ThemedText style={{ fontSize: 50 }}>
+                      {selectedAvatar && !PIXEL_AVATARS[selectedAvatar] && !selectedAvatar.startsWith('http') ? selectedAvatar : '🎓'}
+                    </ThemedText>
                   </View>
                 )}
                 <ThemedText type="small" style={{ color: theme.textSecondary, marginTop: Spacing.two }}>
@@ -493,17 +828,17 @@ export default function ProfileScreen() {
                 </ThemedText>
                 
                 <View style={styles.presetGrid}>
-                  {PRESET_AVATARS.map((emoji, index) => (
+                  {PRESET_AVATARS.map((avatarName, index) => (
                     <Pressable
                       key={index}
                       style={[
                         styles.presetGridItem,
-                        { backgroundColor: theme.background, borderColor: 'transparent' },
-                        selectedAvatar === emoji && { borderColor: theme.primary, backgroundColor: theme.backgroundSelected, borderWidth: 2 }
+                        { backgroundColor: theme.background, borderColor: 'transparent', overflow: 'hidden', justifyContent: 'center', alignItems: 'center' },
+                        selectedAvatar === avatarName && { borderColor: theme.primary, backgroundColor: theme.backgroundSelected, borderWidth: 2 }
                       ]}
-                      onPress={() => setSelectedAvatar(emoji)}
+                      onPress={() => setSelectedAvatar(avatarName)}
                     >
-                      <ThemedText style={{ fontSize: 24 }}>{emoji}</ThemedText>
+                      <Image source={PIXEL_AVATARS[avatarName]} style={{ width: 44, height: 44, borderRadius: 22 }} />
                     </Pressable>
                   ))}
                 </View>
@@ -871,5 +1206,33 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: Spacing.three,
     alignItems: 'center',
+  },
+  inputGroup: {
+    gap: Spacing.one,
+    marginBottom: Spacing.three,
+  },
+  inputLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#94A3B8',
+    marginLeft: 2,
+    marginBottom: 4,
+  },
+  input: {
+    backgroundColor: '#0A0F1D',
+    borderWidth: 1,
+    borderColor: '#1E293B',
+    borderRadius: 12,
+    color: '#FFFFFF',
+    paddingHorizontal: Spacing.four,
+    paddingVertical: Platform.OS === 'ios' ? Spacing.four : Spacing.three,
+    fontSize: 15,
+  },
+  detailsSaveBtn: {
+    backgroundColor: '#003366',
+    paddingVertical: Spacing.three,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

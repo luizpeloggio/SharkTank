@@ -7,6 +7,7 @@ import {
   FlatList,
   Platform,
   Alert,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
@@ -118,6 +119,18 @@ const TESTIMONIALS: Testimonial[] = [
     companyLogo: '💛',
   },
 ];
+
+const TESTIMONIAL_AVATARS: { [key: string]: any } = {
+  't1': require('@/assets/images/juliana-macedo.jpg'),
+  't2': require('@/assets/images/marcos_rocha.jpg'),
+  't3': require('@/assets/images/aline-souza.jpg'),
+};
+
+const GALLERY_IMAGES: { [key: string]: any } = {
+  '🚀': require('@/assets/images/foguete-1.png'),
+  '🏆': require('@/assets/images/trofeu-1.png'),
+  '🤝': require('@/assets/images/maos.png'),
+};
 
 const GALLERY: GalleryItem[] = [
   {
@@ -435,8 +448,8 @@ export default function VitrineScreen() {
                 >
                   {/* Testimonial Header */}
                   <View style={styles.testiHeader}>
-                    <View style={[styles.testiAvatarBox, { backgroundColor: vColors.accentBg }]}>
-                      <ThemedText style={{ fontSize: 24 }}>{item.avatar}</ThemedText>
+                    <View style={[styles.testiAvatarBox, { backgroundColor: vColors.accentBg, overflow: 'hidden' }]}>
+                      <Image source={TESTIMONIAL_AVATARS[item.id]} style={{ width: 44, height: 44, borderRadius: 22 }} />
                     </View>
                     <View style={styles.testiMeta}>
                       <ThemedText type="smallBold" style={[styles.testiName, { color: vColors.text }]}>
@@ -504,7 +517,11 @@ export default function VitrineScreen() {
                   ]}
                 >
                   <View style={[styles.galleryEmojiContainer, { backgroundColor: vColors.accentBg }]}>
-                    <ThemedText style={{ fontSize: 32 }}>{item.emoji}</ThemedText>
+                    {GALLERY_IMAGES[item.emoji] ? (
+                      <Image source={GALLERY_IMAGES[item.emoji]} style={{ width: 48, height: 48, resizeMode: 'contain' }} />
+                    ) : (
+                      <ThemedText style={{ fontSize: 32 }}>{item.emoji}</ThemedText>
+                    )}
                   </View>
                   <View style={styles.galleryInfo}>
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>

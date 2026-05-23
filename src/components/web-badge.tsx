@@ -16,14 +16,18 @@ export function WebBadge() {
       <ThemedText type="code" themeColor="textSecondary" style={styles.versionText}>
         v{version}
       </ThemedText>
-      <Image
-        source={
-          scheme === 'dark'
-            ? require('@/assets/images/expo-badge-white.png')
-            : require('@/assets/images/expo-badge.png')
-        }
-        style={styles.badgeImage}
-      />
+      <ThemedView style={{
+        paddingHorizontal: Spacing.three,
+        paddingVertical: Spacing.one,
+        borderRadius: 8,
+        backgroundColor: scheme === 'dark' ? '#131C2E' : '#E2E8F0',
+        borderColor: scheme === 'dark' ? '#1E293B' : '#CBD5E1',
+        borderWidth: 1,
+      }}>
+        <ThemedText type="code" style={{ fontSize: 11, color: scheme === 'dark' ? '#94A3B8' : '#64748B' }}>
+          ⚡ Powered by Expo v55
+        </ThemedText>
+      </ThemedView>
     </ThemedView>
   );
 }
