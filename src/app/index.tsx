@@ -17,6 +17,50 @@ import { ThemedView } from '@/components/themed-view';
 import { Spacing, Colors, MaxContentWidth } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
+export interface B2BService {
+  id: string;
+  ej: string;
+  title: string;
+  price: string;
+  rating: number;
+  description: string;
+  portfolio: string;
+  avatar: string;
+}
+
+export const B2B_SERVICES: B2BService[] = [
+  {
+    id: 's-1',
+    ej: 'Computação EJ (Mossoró)',
+    title: 'Desenvolvimento de Sites & Web Apps',
+    price: 'A partir de R$ 1.800',
+    rating: 4.9,
+    description: 'Criação de landing pages responsivas, e-commerces e sistemas web sob medida em React/Node.',
+    portfolio: 'Mais de 15 sites entregues na região oeste potiguar.',
+    avatar: '💻'
+  },
+  {
+    id: 's-2',
+    ej: 'Administração Consultoria',
+    title: 'Plano de Negócios & Viabilidade',
+    price: 'A partir de R$ 1.200',
+    rating: 4.8,
+    description: 'Estruturação de planos financeiros, análise SWOT, estudo de concorrentes e projeção de caixa.',
+    portfolio: 'Auxiliamos mais de 20 comércios locais a estruturarem suas finanças.',
+    avatar: '📊'
+  },
+  {
+    id: 's-3',
+    ej: 'Assessoria Direito EJ',
+    title: 'Contratos, Estatutos & Registro',
+    price: 'Sob Consulta',
+    rating: 5.0,
+    description: 'Assessoria jurídica completa para startups, termos de uso, contratos de prestação e compliance.',
+    portfolio: 'Apoiamos a regularização civil de 8 empresas juniores do estado.',
+    avatar: '⚖️'
+  }
+];
+
 export default function FeedScreen() {
   const theme = useTheme();
 
@@ -33,6 +77,25 @@ export default function FeedScreen() {
   const [newAuthor, setNewAuthor] = useState<string>('');
   const [newCategory, setNewCategory] = useState<'vaga' | 'evento' | 'noticia'>('noticia');
   const [newApplyUrl, setNewApplyUrl] = useState<string>('');
+
+  // Interactive View Toggle (Mural Feed vs B2B Services Marketplace)
+  const [activeView, setActiveView] = useState<'feed' | 'marketplace'>('feed');
+  
+  // Smart Notifications states
+  const [isNotificationsVisible, setIsNotificationsVisible] = useState<boolean>(false);
+  const [notifications, setNotifications] = useState([
+    { id: 'notif-1', title: '💼 Nova vaga de programador front-end!', desc: 'Computação EJ Mossoró acabou de abrir inscrições. Confira agora!', unread: true, category: 'vaga' },
+    { id: 'notif-2', title: '🦈 Shark Tank: A votação popular encerra em breve!', desc: 'Vá até o Shark Tank e ajude a eleger a melhor startup acadêmica!', unread: true, category: 'sharktank' },
+    { id: 'notif-3', title: '🛣️ Guia de Fundação: Nova etapa disponível!', desc: 'Seu progresso desbloqueou a etapa burocrática de CNPJ e cartório.', unread: true, category: 'guia' }
+  ]);
+
+  // B2B Services states
+  const [isQuoteModalVisible, setIsQuoteModalVisible] = useState<boolean>(false);
+  const [selectedServiceForQuote, setSelectedServiceForQuote] = useState<B2BService | null>(null);
+  const [clientName, setClientName] = useState<string>('');
+  const [clientEmail, setClientEmail] = useState<string>('');
+  const [projectDescription, setProjectDescription] = useState<string>('');
+  const [estimatedBudget, setEstimatedBudget] = useState<string>('Abaixo de R$ 2.000');
 
   useEffect(() => {
     loadData();
@@ -95,6 +158,44 @@ export default function FeedScreen() {
     }
   };
 
+  const handleOpenQuote = (service: B2BService) => {
+    setSelectedServiceForQuote(service);
+    setClientName('');
+    setClientEmail('');
+    setProjectDescription('');
+    setEstimatedBudget('Abaixo de R$ 2.000');
+    setIsQuoteModalVisible(true);
+  };
+
+  const handleConfirmQuote = () => {
+    if (!clientName.trim() || !clientEmail.trim() || !projectDescription.trim()) {
+      if (Platform.OS === 'web') {
+        alert('Por favor, preencha todos os campos obrigatórios!');
+      } else {
+        Alert.alert('Campos Obrigatórios', 'Por favor, insira o seu nome, e-mail e descrição do projeto.');
+      }
+      return;
+    }
+
+    const msg = `Sucesso! Sua solicitação de orçamento para "${selectedServiceForQuote?.title}" foi recebida pela equipe da ${selectedServiceForQuote?.ej}.\n\nVocê receberá o portfólio completo e a proposta comercial no e-mail ${clientEmail} em até 48 horas úteis!`;
+    
+    if (Platform.OS === 'web') {
+      alert(msg);
+    } else {
+      Alert.alert('Solicitação Recebida!', msg);
+    }
+    
+    setIsQuoteModalVisible(false);
+  };
+
+  const handleReadNotification = (id: string) => {
+    setNotifications(prev => prev.map(notif => notif.id === id ? { ...notif, unread: false } : notif));
+  };
+
+  const handleClearAllNotifications = () => {
+    setNotifications(prev => prev.map(notif => ({ ...notif, unread: false })));
+  };
+
   // Filter Posts
   const filteredPosts = selectedFilter === 'todos' 
     ? posts 
@@ -128,160 +229,271 @@ export default function FeedScreen() {
             </ThemedText>
           </View>
           
-          <View style={[styles.roleTag, { backgroundColor: theme.backgroundSelected, borderColor: theme.border }]}>
-            <ThemedText type="code" style={[styles.roleTagText, { color: theme.text }]}>
-              Perfis: {userRole.toUpperCase()}
-            </ThemedText>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+            {/* Intelligent Notification Bell */}
+            <Pressable 
+              onPress={() => setIsNotificationsVisible(true)}
+              style={{
+                position: 'relative',
+                width: 38,
+                height: 38,
+                borderRadius: 19,
+                backgroundColor: theme.backgroundElement,
+                borderColor: theme.border,
+                borderWidth: 1,
+                justifyContent: 'center',
+                alignItems: 'center',
+              }}
+            >
+              <ThemedText style={{ fontSize: 18 }}>🔔</ThemedText>
+              {notifications.some(n => n.unread) && (
+                <View 
+                  style={{
+                    position: 'absolute',
+                    top: 6,
+                    right: 6,
+                    width: 8,
+                    height: 8,
+                    borderRadius: 4,
+                    backgroundColor: '#EF4444',
+                  }}
+                />
+              )}
+            </Pressable>
+
+            <View style={[styles.roleTag, { backgroundColor: theme.backgroundSelected, borderColor: theme.border }]}>
+              <ThemedText type="code" style={[styles.roleTagText, { color: theme.text }]}>
+                Perfis: {userRole.toUpperCase()}
+              </ThemedText>
+            </View>
           </View>
         </View>
 
-        {/* HORIZONTAL CATEGORY FILTER CHIPS */}
-        <View style={styles.filterContainer}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterScroll}>
-            {(['todos', 'vaga', 'evento', 'noticia'] as const).map(filter => {
-              const isActive = selectedFilter === filter;
-              const label = filter === 'todos' ? 'Todos' : filter === 'vaga' ? '💼 Vagas' : filter === 'evento' ? '📅 Eventos' : '📰 Notícias';
-              
-              return (
-                <Pressable
-                  key={filter}
-                  style={[
-                    styles.chip,
-                    { 
-                      backgroundColor: isActive ? theme.primary : theme.backgroundElement,
-                      borderColor: isActive ? theme.primary : theme.border,
-                      borderWidth: 1,
-                    }
-                  ]}
-                  onPress={() => setSelectedFilter(filter)}
-                >
-                  <ThemedText 
-                    type="smallBold" 
-                    style={[
-                      styles.chipText,
-                      { color: isActive ? '#FFFFFF' : theme.textSecondary }
-                    ]}
-                  >
-                    {label}
-                  </ThemedText>
-                </Pressable>
-              );
-            })}
-          </ScrollView>
+        {/* VIEW SELECTOR: FEED VS B2B MARKETPLACE */}
+        <View style={{ flexDirection: 'row', backgroundColor: theme.backgroundElement, borderRadius: 12, padding: 4, marginBottom: Spacing.three, borderColor: theme.border, borderWidth: 1 }}>
+          <Pressable
+            style={{
+              flex: 1,
+              paddingVertical: 10,
+              borderRadius: 8,
+              backgroundColor: activeView === 'feed' ? theme.primary : 'transparent',
+              alignItems: 'center',
+            }}
+            onPress={() => setActiveView('feed')}
+          >
+            <ThemedText type="smallBold" style={{ color: activeView === 'feed' ? '#FFF' : theme.text }}>
+              📰 Mural de Notícias
+            </ThemedText>
+          </Pressable>
+
+          <Pressable
+            style={{
+              flex: 1,
+              paddingVertical: 10,
+              borderRadius: 8,
+              backgroundColor: activeView === 'marketplace' ? theme.primary : 'transparent',
+              alignItems: 'center',
+            }}
+            onPress={() => setActiveView('marketplace')}
+          >
+            <ThemedText type="smallBold" style={{ color: activeView === 'marketplace' ? '#FFF' : theme.text }}>
+              🛍️ Serviços B2B
+            </ThemedText>
+          </Pressable>
         </View>
 
-        {/* FEED POSTS LIST */}
-        {isLoading ? (
-          // Skeleton Loader Simulation
-          <View style={styles.skeletonContainer}>
-            <View style={[styles.skeletonCard, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]} />
-            <View style={[styles.skeletonCard, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]} />
-          </View>
-        ) : filteredPosts.length === 0 ? (
-          <View style={styles.emptyContainer}>
-            <ThemedText style={styles.emptyIcon}>🏜️</ThemedText>
-            <ThemedText type="smallBold" style={[styles.emptyTitle, { color: theme.text }]}>
-              Nenhuma postagem encontrada
-            </ThemedText>
-            <ThemedText type="small" style={[styles.emptySub, { color: theme.textSecondary }]}>
-              Parece que este filtro está temporariamente vazio.
-            </ThemedText>
-          </View>
+        {/* CONTENT PANELS RENDERING */}
+        {activeView === 'feed' ? (
+          <>
+            {/* HORIZONTAL CATEGORY FILTER CHIPS */}
+            <View style={styles.filterContainer}>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterScroll}>
+                {(['todos', 'vaga', 'evento', 'noticia'] as const).map(filter => {
+                  const isActive = selectedFilter === filter;
+                  const label = filter === 'todos' ? 'Todos' : filter === 'vaga' ? '💼 Vagas' : filter === 'evento' ? '📅 Eventos' : '📰 Notícias';
+                  
+                  return (
+                    <Pressable
+                      key={filter}
+                      style={[
+                        styles.chip,
+                        { 
+                          backgroundColor: isActive ? theme.primary : theme.backgroundElement,
+                          borderColor: isActive ? theme.primary : theme.border,
+                          borderWidth: 1,
+                        }
+                      ]}
+                      onPress={() => setSelectedFilter(filter)}
+                    >
+                      <ThemedText 
+                        type="smallBold" 
+                        style={[
+                          styles.chipText,
+                          { color: isActive ? '#FFFFFF' : theme.textSecondary }
+                        ]}
+                      >
+                        {label}
+                      </ThemedText>
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
+            </View>
+
+            {/* FEED POSTS LIST */}
+            {isLoading ? (
+              // Skeleton Loader Simulation
+              <View style={styles.skeletonContainer}>
+                <View style={[styles.skeletonCard, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]} />
+                <View style={[styles.skeletonCard, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]} />
+              </View>
+            ) : filteredPosts.length === 0 ? (
+              <View style={styles.emptyContainer}>
+                <ThemedText style={styles.emptyIcon}>🏜️</ThemedText>
+                <ThemedText type="smallBold" style={[styles.emptyTitle, { color: theme.text }]}>
+                  Nenhuma postagem encontrada
+                </ThemedText>
+                <ThemedText type="small" style={[styles.emptySub, { color: theme.textSecondary }]}>
+                  Parece que este filtro está temporariamente vazio.
+                </ThemedText>
+              </View>
+            ) : (
+              <FlatList
+                data={filteredPosts}
+                keyExtractor={(item) => item.id}
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={styles.feedListContent}
+                renderItem={({ item }) => {
+                  const colors = getTagColors(item.category);
+                  
+                  return (
+                    <View style={[styles.postCard, { backgroundColor: theme.backgroundElement, borderColor: theme.border, borderWidth: 1 }]}>
+                      {/* Card Header */}
+                      <View style={styles.cardHeader}>
+                        <View style={styles.authorSection}>
+                          <View style={[styles.authorBadge, { backgroundColor: theme.primary }]}>
+                            <ThemedText type="smallBold" style={{ color: '#FFF' }}>
+                              {item.author.charAt(0).toUpperCase()}
+                            </ThemedText>
+                          </View>
+                          <View>
+                            <ThemedText type="smallBold" style={[styles.authorName, { color: theme.text }]}>
+                              {item.author}
+                            </ThemedText>
+                            <ThemedText type="code" style={[styles.postDate, { color: theme.textSecondary }]}>
+                              {item.date}
+                            </ThemedText>
+                          </View>
+                        </View>
+                        
+                        {/* Category Tag */}
+                        <View style={[
+                          styles.tagBadge, 
+                          { backgroundColor: colors.bg, borderColor: colors.border }
+                        ]}>
+                          <ThemedText type="code" style={[styles.tagText, { color: colors.text }]}>
+                            {item.tag}
+                          </ThemedText>
+                        </View>
+                      </View>
+
+                      {/* Card Body */}
+                      <ThemedText type="smallBold" style={[styles.cardTitle, { color: theme.text }]}>
+                        {item.title}
+                      </ThemedText>
+                      
+                      <ThemedText type="small" style={[styles.cardContent, { color: theme.textSecondary }]}>
+                        {item.content}
+                      </ThemedText>
+
+                      {/* Card Footer Actions */}
+                      <View style={[styles.cardFooter, { borderTopColor: theme.border, borderTopWidth: 1 }]}>
+                        
+                        {/* Likes Action */}
+                        <Pressable 
+                          style={styles.likeBtn}
+                          onPress={() => handleLike(item.id)}
+                        >
+                          <ThemedText style={styles.likeEmoji}>🔥</ThemedText>
+                          <ThemedText type="code" style={[styles.likeCount, { color: theme.textSecondary }]}>
+                            {item.likes} curtidas
+                          </ThemedText>
+                        </Pressable>
+
+                        {/* Apply Recruitment Link */}
+                        {item.applyUrl && (
+                          <Pressable 
+                            style={[styles.applyBtn, { borderColor: theme.primary, borderWidth: 1 }]}
+                            onPress={() => {
+                              if (Platform.OS === 'web') {
+                                window.open(item.applyUrl, '_blank');
+                              } else {
+                                Alert.alert('Candidatura', `Redirecionando para inscrição em: ${item.applyUrl}`);
+                              }
+                            }}
+                          >
+                            <ThemedText type="code" style={[styles.applyBtnText, { color: theme.primary }]}>
+                              Candidatar-se ↗
+                            </ThemedText>
+                          </Pressable>
+                        )}
+                      </View>
+                    </View>
+                  );
+                }}
+              />
+            )}
+
+            {/* ROLE-RESTRICTED FAB BUTTON (LIDER OR ADMIN) */}
+            {(userRole === 'lider' || userRole === 'admin') && (
+              <Pressable 
+                style={[styles.fabBtn, { backgroundColor: theme.primary }]}
+                onPress={() => setIsPostModalVisible(true)}
+              >
+                <ThemedText style={styles.fabIcon}>+</ThemedText>
+              </Pressable>
+            )}
+          </>
         ) : (
+          /* B2B SERVICES MARKETPLACE */
           <FlatList
-            data={filteredPosts}
+            data={B2B_SERVICES}
             keyExtractor={(item) => item.id}
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.feedListContent}
-            renderItem={({ item }) => {
-              const colors = getTagColors(item.category);
-              
-              return (
-                <View style={[styles.postCard, { backgroundColor: theme.backgroundElement, borderColor: theme.border, borderWidth: 1 }]}>
-                  {/* Card Header */}
-                  <View style={styles.cardHeader}>
-                    <View style={styles.authorSection}>
-                      <View style={[styles.authorBadge, { backgroundColor: theme.primary }]}>
-                        <ThemedText type="smallBold" style={{ color: '#FFF' }}>
-                          {item.author.charAt(0).toUpperCase()}
-                        </ThemedText>
+            renderItem={({ item }) => (
+              <View style={[styles.postCard, { backgroundColor: theme.backgroundElement, borderColor: theme.border, borderWidth: 1, padding: Spacing.four }]}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: Spacing.two }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <ThemedText style={{ fontSize: 24, marginRight: 8 }}>{item.avatar}</ThemedText>
+                    <View>
+                      <ThemedText type="smallBold" style={{ color: theme.text }}>{item.ej}</ThemedText>
+                      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                        <ThemedText style={{ color: '#EAB308', fontSize: 12 }}>★ </ThemedText>
+                        <ThemedText style={{ color: theme.textSecondary, fontSize: 11 }}>{item.rating}</ThemedText>
                       </View>
-                      <View>
-                        <ThemedText type="smallBold" style={[styles.authorName, { color: theme.text }]}>
-                          {item.author}
-                        </ThemedText>
-                        <ThemedText type="code" style={[styles.postDate, { color: theme.textSecondary }]}>
-                          {item.date}
-                        </ThemedText>
-                      </View>
-                    </View>
-                    
-                    {/* Category Tag */}
-                    <View style={[
-                      styles.tagBadge, 
-                      { backgroundColor: colors.bg, borderColor: colors.border }
-                    ]}>
-                      <ThemedText type="code" style={[styles.tagText, { color: colors.text }]}>
-                        {item.tag}
-                      </ThemedText>
                     </View>
                   </View>
-
-                  {/* Card Body */}
-                  <ThemedText type="smallBold" style={[styles.cardTitle, { color: theme.text }]}>
-                    {item.title}
-                  </ThemedText>
-                  
-                  <ThemedText type="small" style={[styles.cardContent, { color: theme.textSecondary }]}>
-                    {item.content}
-                  </ThemedText>
-
-                  {/* Card Footer Actions */}
-                  <View style={[styles.cardFooter, { borderTopColor: theme.border, borderTopWidth: 1 }]}>
-                    
-                    {/* Likes Action */}
-                    <Pressable 
-                      style={styles.likeBtn}
-                      onPress={() => handleLike(item.id)}
-                    >
-                      <ThemedText style={styles.likeEmoji}>🔥</ThemedText>
-                      <ThemedText type="code" style={[styles.likeCount, { color: theme.textSecondary }]}>
-                        {item.likes} curtidas
-                      </ThemedText>
-                    </Pressable>
-
-                    {/* Apply Recruitment Link */}
-                    {item.applyUrl && (
-                      <Pressable 
-                        style={[styles.applyBtn, { borderColor: theme.primary, borderWidth: 1 }]}
-                        onPress={() => {
-                          if (Platform.OS === 'web') {
-                            window.open(item.applyUrl, '_blank');
-                          } else {
-                            Alert.alert('Candidatura', `Redirecionando para inscrição em: ${item.applyUrl}`);
-                          }
-                        }}
-                      >
-                        <ThemedText type="code" style={[styles.applyBtnText, { color: theme.primary }]}>
-                          Candidatar-se ↗
-                        </ThemedText>
-                      </Pressable>
-                    )}
+                  <View style={{ backgroundColor: theme.backgroundSelected, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, borderColor: theme.border, borderWidth: 1 }}>
+                    <ThemedText style={{ fontSize: 10, fontWeight: 'bold', color: theme.primary }}>{item.price}</ThemedText>
                   </View>
                 </View>
-              );
-            }}
-          />
-        )}
 
-        {/* ROLE-RESTRICTED FAB BUTTON (LIDER OR ADMIN) */}
-        {(userRole === 'lider' || userRole === 'admin') && (
-          <Pressable 
-            style={[styles.fabBtn, { backgroundColor: theme.primary }]}
-            onPress={() => setIsPostModalVisible(true)}
-          >
-            <ThemedText style={styles.fabIcon}>+</ThemedText>
-          </Pressable>
+                <ThemedText type="smallBold" style={{ color: theme.text, fontSize: 16, marginVertical: Spacing.one }}>{item.title}</ThemedText>
+                <ThemedText type="small" style={{ color: theme.textSecondary, marginBottom: Spacing.two }}>{item.description}</ThemedText>
+                
+                <View style={{ borderTopWidth: 1, borderTopColor: theme.border, paddingTop: Spacing.two, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+                  <ThemedText style={{ fontSize: 10, color: theme.textSecondary, fontStyle: 'italic' }}>💼 {item.portfolio}</ThemedText>
+                  <Pressable
+                    style={{ backgroundColor: theme.primary, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 6 }}
+                    onPress={() => handleOpenQuote(item)}
+                  >
+                    <ThemedText type="code" style={{ color: '#FFFFFF', fontWeight: 'bold' }}>Solicitar Proposta</ThemedText>
+                  </Pressable>
+                </View>
+              </View>
+            )}
+          />
         )}
 
         {/* ================= CREATE POST MODAL ================= */}
@@ -404,6 +616,229 @@ export default function FeedScreen() {
                     💥 Publicar Agora
                   </ThemedText>
                 </Pressable>
+              </View>
+
+            </View>
+          </View>
+        </Modal>
+
+        {/* ================= SMART NOTIFICATIONS DRAWER ================= */}
+        <Modal
+          animationType="slide"
+          transparent={true}
+          visible={isNotificationsVisible}
+          onRequestClose={() => setIsNotificationsVisible(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={[styles.modalCard, { maxHeight: '75%', backgroundColor: theme.backgroundElement, borderTopColor: theme.border, borderTopWidth: 1 }]}>
+              
+              {/* Modal Header */}
+              <View style={[styles.modalHeader, { borderBottomColor: theme.border, borderBottomWidth: 1 }]}>
+                <View>
+                  <ThemedText type="code" style={{ color: theme.primary }}>
+                    NOTIFICAÇÕES INTELIGENTES
+                  </ThemedText>
+                  <ThemedText type="subtitle" style={[styles.modalTitle, { color: theme.text }]}>
+                    Seu painel de alertas
+                  </ThemedText>
+                </View>
+                <Pressable 
+                  onPress={() => setIsNotificationsVisible(false)}
+                  style={[styles.closeModalBtn, { backgroundColor: theme.background }]}
+                >
+                  <ThemedText type="default" style={{ color: theme.textSecondary }}>✕</ThemedText>
+                </Pressable>
+              </View>
+
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: Spacing.four, marginVertical: Spacing.three }}>
+                <ThemedText style={{ fontSize: 12, color: theme.textSecondary }}>
+                  {notifications.filter(n => n.unread).length} novos alertas não lidos
+                </ThemedText>
+                {notifications.some(n => n.unread) && (
+                  <Pressable onPress={handleClearAllNotifications}>
+                    <ThemedText type="smallBold" style={{ color: theme.primary, fontSize: 12 }}>
+                      Marcar todos como lidos
+                    </ThemedText>
+                  </Pressable>
+                )}
+              </View>
+
+              <FlatList
+                data={notifications}
+                keyExtractor={(item) => item.id}
+                contentContainerStyle={{ paddingHorizontal: Spacing.four, paddingBottom: Spacing.four }}
+                renderItem={({ item }) => (
+                  <Pressable 
+                    onPress={() => handleReadNotification(item.id)}
+                    style={{
+                      padding: Spacing.three,
+                      borderRadius: 12,
+                      backgroundColor: item.unread ? theme.backgroundSelected : theme.background,
+                      borderColor: item.unread ? theme.primary : theme.border,
+                      borderWidth: 1,
+                      marginBottom: Spacing.two,
+                    }}
+                  >
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                      <ThemedText type="smallBold" style={{ color: theme.text, fontSize: 13 }}>
+                        {item.title}
+                      </ThemedText>
+                      {item.unread && (
+                        <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#EF4444' }} />
+                      )}
+                    </View>
+                    <ThemedText type="small" style={{ color: theme.textSecondary }}>
+                      {item.desc}
+                    </ThemedText>
+                  </Pressable>
+                )}
+              />
+
+            </View>
+          </View>
+        </Modal>
+
+        {/* ================= B2B SERVICES QUOTE MODAL ================= */}
+        <Modal
+          animationType="fade"
+          transparent={true}
+          visible={isQuoteModalVisible}
+          onRequestClose={() => setIsQuoteModalVisible(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={[styles.modalCard, { width: '90%', maxHeight: '80%', paddingBottom: Spacing.four, backgroundColor: theme.backgroundElement, borderTopColor: theme.border, borderTopWidth: 1 }]}>
+              
+              {/* Modal Header */}
+              <View style={[styles.modalHeader, { borderBottomColor: theme.border, borderBottomWidth: 1 }]}>
+                <View>
+                  <ThemedText type="code" style={{ color: theme.primary }}>
+                    ORÇAMENTO B2B
+                  </ThemedText>
+                  <ThemedText type="subtitle" style={[styles.modalTitle, { color: theme.text }]}>
+                    Solicitar Proposta
+                  </ThemedText>
+                </View>
+                <Pressable 
+                  onPress={() => setIsQuoteModalVisible(false)}
+                  style={[styles.closeModalBtn, { backgroundColor: theme.background }]}
+                >
+                  <ThemedText type="default" style={{ color: theme.textSecondary }}>✕</ThemedText>
+                </Pressable>
+              </View>
+
+              <ScrollView style={{ paddingHorizontal: Spacing.four, marginTop: Spacing.three }} showsVerticalScrollIndicator={false}>
+                {selectedServiceForQuote && (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: theme.background, padding: Spacing.three, borderRadius: 12, marginBottom: Spacing.four, borderColor: theme.border, borderWidth: 1 }}>
+                    <ThemedText style={{ fontSize: 32, marginRight: 12 }}>{selectedServiceForQuote.avatar}</ThemedText>
+                    <View style={{ flex: 1 }}>
+                      <ThemedText type="smallBold" style={{ color: theme.text }}>{selectedServiceForQuote.ej}</ThemedText>
+                      <ThemedText type="code" style={{ color: theme.primary }}>{selectedServiceForQuote.title}</ThemedText>
+                    </View>
+                  </View>
+                )}
+
+                <ThemedText type="smallBold" style={{ color: theme.textSecondary, marginBottom: Spacing.one }}>
+                  Seu Nome / Nome da Empresa *
+                </ThemedText>
+                <TextInput
+                  style={[styles.input, { backgroundColor: theme.background, borderColor: theme.border, color: theme.text }]}
+                  placeholder="Ex: Luiz Barber / Startup X"
+                  placeholderTextColor={theme.textSecondary}
+                  value={clientName}
+                  onChangeText={setClientName}
+                />
+
+                <ThemedText type="smallBold" style={{ color: theme.textSecondary, marginBottom: Spacing.one }}>
+                  E-mail de Contato *
+                </ThemedText>
+                <TextInput
+                  style={[styles.input, { backgroundColor: theme.background, borderColor: theme.border, color: theme.text }]}
+                  placeholder="Ex: luiz@empresa.com"
+                  placeholderTextColor={theme.textSecondary}
+                  autoCapitalize="none"
+                  keyboardType="email-address"
+                  value={clientEmail}
+                  onChangeText={setClientEmail}
+                />
+
+                <ThemedText type="smallBold" style={{ color: theme.textSecondary, marginBottom: Spacing.one }}>
+                  Orçamento Estimado
+                </ThemedText>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: Spacing.three }}>
+                  {['Abaixo de R$ 2.000', 'R$ 2.000 a R$ 5.000', 'Acima de R$ 5.000'].map(budget => {
+                    const isSelected = estimatedBudget === budget;
+                    return (
+                      <Pressable
+                        key={budget}
+                        style={{
+                          paddingHorizontal: 12,
+                          paddingVertical: 8,
+                          borderRadius: 8,
+                          backgroundColor: isSelected ? theme.primary : theme.background,
+                          borderColor: isSelected ? theme.primary : theme.border,
+                          borderWidth: 1,
+                        }}
+                        onPress={() => setEstimatedBudget(budget)}
+                      >
+                        <ThemedText type="smallBold" style={{ color: isSelected ? '#FFF' : theme.text, fontSize: 11 }}>
+                          {budget}
+                        </ThemedText>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+
+                <ThemedText type="smallBold" style={{ color: theme.textSecondary, marginBottom: Spacing.one }}>
+                  Descrição Resumida do Projeto *
+                </ThemedText>
+                <TextInput
+                  style={{
+                    backgroundColor: theme.background,
+                    color: theme.text,
+                    borderColor: theme.border,
+                    borderWidth: 1,
+                    borderRadius: 12,
+                    padding: Spacing.three,
+                    minHeight: 80,
+                    textAlignVertical: 'top',
+                    fontSize: 14,
+                    marginBottom: Spacing.four,
+                  }}
+                  multiline
+                  placeholder="Ex: Preciso de um site institucional de 5 páginas com agendamento simples."
+                  placeholderTextColor={theme.textSecondary}
+                  value={projectDescription}
+                  onChangeText={setProjectDescription}
+                />
+              </ScrollView>
+
+              <View style={[styles.modalFooter, { borderTopColor: theme.border, borderTopWidth: 1, paddingHorizontal: Spacing.four, paddingTop: Spacing.three }]}>
+                <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 12 }}>
+                  <Pressable 
+                    style={{
+                      paddingHorizontal: 16,
+                      paddingVertical: 10,
+                      borderRadius: 10,
+                      backgroundColor: theme.background,
+                      borderColor: theme.border,
+                      borderWidth: 1,
+                    }}
+                    onPress={() => setIsQuoteModalVisible(false)}
+                  >
+                    <ThemedText type="smallBold" style={{ color: theme.textSecondary }}>Cancelar</ThemedText>
+                  </Pressable>
+                  <Pressable 
+                    style={{
+                      paddingHorizontal: 16,
+                      paddingVertical: 10,
+                      borderRadius: 10,
+                      backgroundColor: theme.primary,
+                    }}
+                    onPress={handleConfirmQuote}
+                  >
+                    <ThemedText type="smallBold" style={{ color: '#FFF' }}>Enviar Solicitação</ThemedText>
+                  </Pressable>
+                </View>
               </View>
 
             </View>

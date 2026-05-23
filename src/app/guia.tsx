@@ -9,6 +9,7 @@ import {
   FlatList,
   Alert,
   Dimensions,
+  TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Circle } from 'react-native-svg';
@@ -22,6 +23,64 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing, Colors, MaxContentWidth } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+
+export interface Mentor {
+  id: string;
+  name: string;
+  role: string;
+  company: string;
+  avatar: string;
+  bio: string;
+  area: 'tech' | 'juridico' | 'vendas' | 'marketing' | 'financas';
+}
+
+export const MENTORS_LIST: Mentor[] = [
+  {
+    id: 'mentor-1',
+    name: 'Carlos Alberto',
+    role: 'Ex-Presidente da Computação EJ',
+    company: 'Tech Solutions',
+    avatar: '👨‍💻',
+    bio: 'Especialista em React Native, arquitetura de sistemas e metodologias ágeis de desenvolvimento.',
+    area: 'tech'
+  },
+  {
+    id: 'mentor-2',
+    name: 'Mariana Lima',
+    role: 'Consultora de Processos Jurídicos',
+    company: 'UERN Consultoria',
+    avatar: '⚖️',
+    bio: 'Advogada especialista em terceiro setor. Auxilia no registro de estatutos e governança corporativa.',
+    area: 'juridico'
+  },
+  {
+    id: 'mentor-3',
+    name: 'Felipe Santos',
+    role: 'Diretor Comercial',
+    company: 'Vendas Pro',
+    avatar: '📈',
+    bio: 'Treinamento de funil de vendas, prospecção ativa outbound e negociação complexa B2B.',
+    area: 'vendas'
+  },
+  {
+    id: 'mentor-4',
+    name: 'Juliana Costa',
+    role: 'Especialista em Growth',
+    company: 'Digital Hub',
+    avatar: '📣',
+    bio: 'Desenvolvimento de marcas, marketing digital de conteúdo e tráfego pago para startups.',
+    area: 'marketing'
+  },
+  {
+    id: 'mentor-5',
+    name: 'Roberto Dias',
+    role: 'CFO e Assessor Financeiro',
+    company: 'Dias Capital',
+    avatar: '💰',
+    bio: 'Planejamento de fluxo de caixa, precificação de serviços e prestação de contas de EJs.',
+    area: 'financas'
+  }
+];
 
 interface ProgressCircleProps {
   progress: number;
@@ -81,6 +140,14 @@ export default function GuiaScreen() {
   const [checkedSubItems, setCheckedSubItems] = useState<{ [key: string]: boolean }>({});
   const [isMentorsVisible, setIsMentorsVisible] = useState<boolean>(false);
   const [isStepModalVisible, setIsStepModalVisible] = useState<boolean>(false);
+
+  // Mentorship and Networking states
+  const [selectedArea, setSelectedArea] = useState<string>('todos');
+  const [isBookingModalVisible, setIsBookingModalVisible] = useState<boolean>(false);
+  const [selectedMentorForBooking, setSelectedMentorForBooking] = useState<Mentor | null>(null);
+  const [selectedTimeSlot, setSelectedTimeSlot] = useState<string>('14:00 - 14:30');
+  const [bookingDescription, setBookingDescription] = useState<string>('');
+  const [bookedSessions, setBookedSessions] = useState<string[]>([]);
 
   // Load state on mount/focus
   useEffect(() => {
@@ -216,6 +283,29 @@ export default function GuiaScreen() {
     } else {
       Alert.alert('Email Enviado!', msg);
     }
+  };
+
+  const handleOpenBooking = (mentor: Mentor) => {
+    setSelectedMentorForBooking(mentor);
+    setSelectedTimeSlot('14:00 - 14:30');
+    setBookingDescription('');
+    setIsBookingModalVisible(true);
+  };
+
+  const handleConfirmBooking = () => {
+    if (!selectedMentorForBooking) return;
+    
+    setBookedSessions(prev => [...prev, selectedMentorForBooking.name]);
+    
+    const msg = `Sucesso! Sua mentoria rápida com ${selectedMentorForBooking.name} foi agendada para hoje no horário ${selectedTimeSlot}.\n\nO link da sala virtual do Google Meet foi enviado para o seu e-mail!`;
+    
+    if (Platform.OS === 'web') {
+      alert(msg);
+    } else {
+      Alert.alert('Mentoria Agendada!', msg);
+    }
+    
+    setIsBookingModalVisible(false);
   };
 
   return (
@@ -463,7 +553,7 @@ export default function GuiaScreen() {
           onRequestClose={() => setIsMentorsVisible(false)}
         >
           <View style={styles.modalOverlay}>
-            <View style={[styles.modalCard, { maxHeight: '60%', backgroundColor: theme.backgroundElement, borderTopColor: theme.border, borderTopWidth: 1 }]}>
+            <View style={[styles.modalCard, { maxHeight: '80%', backgroundColor: theme.backgroundElement, borderTopColor: theme.border, borderTopWidth: 1 }]}>
               
               {/* Drawer Header */}
               <View style={[styles.modalHeader, { borderBottomColor: theme.border, borderBottomWidth: 1 }]}>
@@ -472,7 +562,7 @@ export default function GuiaScreen() {
                     SUPORTE AO ALUNO
                   </ThemedText>
                   <ThemedText type="subtitle" style={[styles.modalTitle, { color: theme.text }]}>
-                    Mentores Disponíveis
+                    Mentores & Networking
                   </ThemedText>
                 </View>
                 <Pressable 
@@ -483,33 +573,206 @@ export default function GuiaScreen() {
                 </Pressable>
               </View>
 
-              {/* Mentors List */}
-              <FlatList
-                data={SHARKS}
-                keyExtractor={(item) => item.id}
-                contentContainerStyle={{ paddingHorizontal: Spacing.four, paddingBottom: Spacing.four }}
-                renderItem={({ item }) => (
-                  <View style={[styles.mentorCard, { backgroundColor: theme.background, borderColor: theme.border, borderWidth: 1 }]}>
-                    <View style={styles.mentorAvatarContainer}>
-                      <ThemedText style={styles.mentorAvatar}>{item.avatar}</ThemedText>
-                    </View>
-                    <View style={styles.mentorInfo}>
-                      <ThemedText type="smallBold" style={[styles.mentorName, { color: theme.text }]}>{item.name}</ThemedText>
-                      <ThemedText type="code" style={[styles.mentorRole, { color: theme.primary }]}>{item.role} ({item.company})</ThemedText>
-                      <ThemedText type="small" style={[styles.mentorBio, { color: theme.textSecondary }]}>{item.bio}</ThemedText>
-                      
-                      <Pressable 
-                        style={[styles.contactBtn, { backgroundColor: theme.primary }]}
-                        onPress={() => handleContactMentor(item.name)}
+              {/* Dynamic Specialty Filters */}
+              <View style={{ paddingHorizontal: Spacing.four, marginVertical: Spacing.three }}>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
+                  {(['todos', 'tech', 'juridico', 'vendas', 'marketing', 'financas'] as const).map(area => {
+                    const isSel = selectedArea === area;
+                    const labelMap = { 
+                      todos: '🌟 Todos', 
+                      tech: '💻 Tech', 
+                      juridico: '⚖️ Jurídico', 
+                      vendas: '📈 Vendas', 
+                      marketing: '📣 Marketing', 
+                      financas: '💰 Finanças' 
+                    };
+                    return (
+                      <Pressable
+                        key={area}
+                        style={{
+                          paddingHorizontal: 12,
+                          paddingVertical: 6,
+                          borderRadius: 20,
+                          backgroundColor: isSel ? theme.primary : theme.background,
+                          borderWidth: 1,
+                          borderColor: theme.border,
+                        }}
+                        onPress={() => setSelectedArea(area)}
                       >
-                        <ThemedText type="code" style={{ color: '#FFFFFF', fontWeight: 'bold' }}>
-                          Enviar Dúvida
+                        <ThemedText type="smallBold" style={{ color: isSel ? '#FFF' : theme.text }}>
+                          {labelMap[area]}
                         </ThemedText>
                       </Pressable>
+                    );
+                  })}
+                </ScrollView>
+              </View>
+
+              {/* Mentors List */}
+              <FlatList
+                data={MENTORS_LIST.filter(m => selectedArea === 'todos' || m.area === selectedArea)}
+                keyExtractor={(item) => item.id}
+                contentContainerStyle={{ paddingHorizontal: Spacing.four, paddingBottom: Spacing.four }}
+                renderItem={({ item }) => {
+                  const isBooked = bookedSessions.includes(item.name);
+                  return (
+                    <View style={[styles.mentorCard, { backgroundColor: theme.background, borderColor: theme.border, borderWidth: 1 }]}>
+                      <View style={styles.mentorAvatarContainer}>
+                        <ThemedText style={styles.mentorAvatar}>{item.avatar}</ThemedText>
+                      </View>
+                      <View style={styles.mentorInfo}>
+                        <ThemedText type="smallBold" style={[styles.mentorName, { color: theme.text }]}>{item.name}</ThemedText>
+                        <ThemedText type="code" style={[styles.mentorRole, { color: theme.primary }]}>{item.role} ({item.company})</ThemedText>
+                        <ThemedText type="small" style={[styles.mentorBio, { color: theme.textSecondary }]}>{item.bio}</ThemedText>
+                        
+                        <View style={{ flexDirection: 'row', gap: 8, marginTop: Spacing.two }}>
+                          <Pressable 
+                            style={[styles.contactBtn, { backgroundColor: theme.backgroundSelected, borderColor: theme.border, borderWidth: 1 }]}
+                            onPress={() => handleContactMentor(item.name)}
+                          >
+                            <ThemedText type="code" style={{ color: theme.text, fontWeight: 'bold' }}>
+                              Enviar Dúvida
+                            </ThemedText>
+                          </Pressable>
+                          
+                          <Pressable 
+                            style={[styles.contactBtn, { backgroundColor: isBooked ? '#22C55E' : theme.primary }]}
+                            onPress={() => handleOpenBooking(item)}
+                          >
+                            <ThemedText type="code" style={{ color: '#FFFFFF', fontWeight: 'bold' }}>
+                              {isBooked ? 'Mentoria Agendada ✓' : 'Reservar Office Hours'}
+                            </ThemedText>
+                          </Pressable>
+                        </View>
+                      </View>
+                    </View>
+                  );
+                }}
+              />
+
+            </View>
+          </View>
+        </Modal>
+
+        {/* ================= OFFICE HOURS BOOKING MODAL ================= */}
+        <Modal
+          animationType="fade"
+          transparent={true}
+          visible={isBookingModalVisible}
+          onRequestClose={() => setIsBookingModalVisible(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={[styles.modalCard, { width: '90%', maxHeight: '75%', paddingBottom: Spacing.four, backgroundColor: theme.backgroundElement, borderTopColor: theme.border, borderTopWidth: 1 }]}>
+              
+              {/* Modal Header */}
+              <View style={[styles.modalHeader, { borderBottomColor: theme.border, borderBottomWidth: 1 }]}>
+                <View>
+                  <ThemedText type="code" style={{ color: theme.primary }}>
+                    AGENDAMENTO
+                  </ThemedText>
+                  <ThemedText type="subtitle" style={[styles.modalTitle, { color: theme.text }]}>
+                    Agendar mentoria rápida
+                  </ThemedText>
+                </View>
+                <Pressable 
+                  onPress={() => setIsBookingModalVisible(false)}
+                  style={[styles.closeModalBtn, { backgroundColor: theme.background }]}
+                >
+                  <ThemedText type="default" style={{ color: theme.textSecondary }}>✕</ThemedText>
+                </Pressable>
+              </View>
+
+              <ScrollView style={{ paddingHorizontal: Spacing.four, marginTop: Spacing.three }} showsVerticalScrollIndicator={false}>
+                {selectedMentorForBooking && (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: theme.background, padding: Spacing.three, borderRadius: 12, marginBottom: Spacing.four, borderColor: theme.border, borderWidth: 1 }}>
+                    <ThemedText style={{ fontSize: 32, marginRight: 12 }}>{selectedMentorForBooking.avatar}</ThemedText>
+                    <View>
+                      <ThemedText type="smallBold" style={{ color: theme.text }}>{selectedMentorForBooking.name}</ThemedText>
+                      <ThemedText type="code" style={{ color: theme.primary }}>{selectedMentorForBooking.role}</ThemedText>
                     </View>
                   </View>
                 )}
-              />
+
+                <ThemedText type="smallBold" style={{ color: theme.text, marginBottom: Spacing.two }}>
+                  ⏰ Selecione o Horário de Hoje:
+                </ThemedText>
+
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: Spacing.four }}>
+                  {['14:00 - 14:30', '14:40 - 15:10', '15:20 - 15:50', '16:00 - 16:30'].map(slot => {
+                    const isSelected = selectedTimeSlot === slot;
+                    return (
+                      <Pressable
+                        key={slot}
+                        style={{
+                          paddingHorizontal: 12,
+                          paddingVertical: 8,
+                          borderRadius: 8,
+                          backgroundColor: isSelected ? theme.primary : theme.background,
+                          borderColor: isSelected ? theme.primary : theme.border,
+                          borderWidth: 1,
+                        }}
+                        onPress={() => setSelectedTimeSlot(slot)}
+                      >
+                        <ThemedText type="smallBold" style={{ color: isSelected ? '#FFF' : theme.text }}>
+                          {slot}
+                        </ThemedText>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+
+                <ThemedText type="smallBold" style={{ color: theme.text, marginBottom: Spacing.two }}>
+                  📝 Qual a sua dúvida principal?
+                </ThemedText>
+                <TextInput
+                  style={{
+                    backgroundColor: theme.background,
+                    color: theme.text,
+                    borderColor: theme.border,
+                    borderWidth: 1,
+                    borderRadius: 12,
+                    padding: Spacing.three,
+                    minHeight: 80,
+                    textAlignVertical: 'top',
+                    fontSize: 14,
+                    marginBottom: Spacing.four,
+                  }}
+                  multiline
+                  placeholder="Ex: Gostaria de revisar nosso estatuto inicial ou tirar dúvidas sobre o Meet..."
+                  placeholderTextColor={theme.textSecondary}
+                  value={bookingDescription}
+                  onChangeText={setBookingDescription}
+                />
+              </ScrollView>
+
+              <View style={[styles.modalFooter, { borderTopColor: theme.border, borderTopWidth: 1, paddingHorizontal: Spacing.four, paddingTop: Spacing.three }]}>
+                <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 12 }}>
+                  <Pressable 
+                    style={{
+                      paddingHorizontal: 16,
+                      paddingVertical: 10,
+                      borderRadius: 10,
+                      backgroundColor: theme.background,
+                      borderColor: theme.border,
+                      borderWidth: 1,
+                    }}
+                    onPress={() => setIsBookingModalVisible(false)}
+                  >
+                    <ThemedText type="smallBold" style={{ color: theme.textSecondary }}>Cancelar</ThemedText>
+                  </Pressable>
+                  <Pressable 
+                    style={{
+                      paddingHorizontal: 16,
+                      paddingVertical: 10,
+                      borderRadius: 10,
+                      backgroundColor: theme.primary,
+                    }}
+                    onPress={handleConfirmBooking}
+                  >
+                    <ThemedText type="smallBold" style={{ color: '#FFF' }}>Confirmar Agendamento</ThemedText>
+                  </Pressable>
+                </View>
+              </View>
 
             </View>
           </View>

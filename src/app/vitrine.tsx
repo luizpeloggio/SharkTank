@@ -40,31 +40,59 @@ interface GalleryItem {
   vibes: string;
 }
 
-const METRICS: MetricItem[] = [
+export interface DynamicMetric {
+  id: string;
+  label: string;
+  desc: string;
+  category: 'faturamento' | 'impacto';
+  semesterValues: { [semester: string]: { value: string; percentage: number } };
+}
+
+export const DYNAMIC_METRICS: DynamicMetric[] = [
   {
-    id: 'm1',
-    value: 'R$ 2.4 Mi',
-    label: 'Valuation & Faturamento',
-    description: 'Gerado por EJs do RN em soluções locais em 2025.',
+    id: 'dm-1',
+    label: 'Faturamento Total das EJs',
+    desc: 'Receita gerada pelo ecossistema potiguar em consultorias locais.',
+    category: 'faturamento',
+    semesterValues: {
+      '2025.1': { value: 'R$ 980 Mil', percentage: 40 },
+      '2025.2': { value: 'R$ 1.25 Milhões', percentage: 52 },
+      '2026.1': { value: 'R$ 1.48 Milhões', percentage: 65 }
+    }
   },
   {
-    id: 'm2',
-    value: '42 EJs',
-    label: 'Federadas no Estado',
-    description: 'Empresas juniores oficiais ativas prestando serviços.',
+    id: 'dm-2',
+    label: 'Horas de Consultoria Doadas',
+    desc: 'Impacto social gratuito oferecido a microempresas locais.',
+    category: 'impacto',
+    semesterValues: {
+      '2025.1': { value: '450 horas', percentage: 30 },
+      '2025.2': { value: '680 horas', percentage: 45 },
+      '2026.1': { value: '920 horas', percentage: 61 }
+    }
   },
   {
-    id: 'm3',
-    value: '1.500+',
-    label: 'Membros Ativos',
-    description: 'Empresários juniores liderando equipes reais em faculdades.',
+    id: 'dm-3',
+    label: 'Projetos Entregues no RN',
+    desc: 'Soluções reais que geraram valor na comunidade potiguar.',
+    category: 'impacto',
+    semesterValues: {
+      '2025.1': { value: '82 Projetos', percentage: 38 },
+      '2025.2': { value: '115 Projetos', percentage: 53 },
+      '2026.1': { value: '154 Projetos', percentage: 72 }
+    }
   },
   {
-    id: 'm4',
-    value: '85%',
-    label: 'Empregabilidade',
-    description: 'De ex-membros contratados por grandes corporações em 6 meses.',
-  },
+    id: 'dm-4',
+    label: 'Captação Média das EJs',
+    desc: 'Ticket médio cobrado de micro e pequenas empresas regionais.',
+    category: 'faturamento',
+    semesterValues: {
+      '2025.1': { value: 'R$ 3.800', percentage: 48 },
+      '2025.2': { value: 'R$ 4.200', percentage: 53 },
+      '2026.1': { value: 'R$ 5.100', percentage: 64 }
+    }
+  }
 ];
 
 const TESTIMONIALS: Testimonial[] = [
@@ -124,58 +152,9 @@ const GALLERY: GalleryItem[] = [
 export default function VitrineScreen() {
   const theme = useTheme();
 
-  // Metric Animated States
-  const [animatedM1, setAnimatedM1] = useState(0);
-  const [animatedM2, setAnimatedM2] = useState(0);
-  const [animatedM3, setAnimatedM3] = useState(0);
-  const [animatedM4, setAnimatedM4] = useState(0);
-
-  // Easing function for smoother counting
-  const animateCount = (targetValue: number, setDisplayVal: React.Dispatch<React.SetStateAction<number>>, decimals: boolean = false) => {
-    setDisplayVal(0);
-    const duration = 1000; // 1 second
-    const startTime = Date.now();
-    
-    const tick = () => {
-      const elapsed = Date.now() - startTime;
-      const progress = Math.min(elapsed / duration, 1);
-      
-      // easeOutQuad curve
-      const easeProgress = progress * (2 - progress);
-      const current = easeProgress * targetValue;
-      
-      setDisplayVal(decimals ? Math.round(current * 10) / 10 : Math.floor(current));
-      
-      if (progress < 1) {
-        requestAnimationFrame(tick);
-      } else {
-        setDisplayVal(targetValue);
-      }
-    };
-    
-    requestAnimationFrame(tick);
-  };
-
-  // Run counting animation every time Showcase screen is focused
-  useFocusEffect(
-    React.useCallback(() => {
-      animateCount(2.4, setAnimatedM1, true);
-      animateCount(42, setAnimatedM2, false);
-      animateCount(1500, setAnimatedM3, false);
-      animateCount(85, setAnimatedM4, false);
-    }, [])
-  );
-
-  const getFormattedValue = (id: string, val: number) => {
-    if (id === 'm1') return `R$ ${val.toFixed(1)} Mi`;
-    if (id === 'm2') return `${Math.floor(val)} EJs`;
-    if (id === 'm3') {
-      const formatted = Math.floor(val).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
-      return `${formatted}+`;
-    }
-    if (id === 'm4') return `${Math.floor(val)}%`;
-    return val.toString();
-  };
+  // Dashboard Filters State
+  const [selectedSemester, setSelectedSemester] = useState<string>('2026.1');
+  const [selectedCategory, setSelectedCategory] = useState<string>('todos');
 
   const handleOpenTestimonial = (name: string) => {
     const msg = `Em breve você poderá assistir à entrevista completa em vídeo com ${name} contando a trajetória detalhada de fundação de EJ!`;
@@ -206,32 +185,98 @@ export default function VitrineScreen() {
 
           {/* METRICS DASHBOARD GRID */}
           <View style={styles.sectionContainer}>
-            <ThemedText type="smallBold" style={[styles.sectionTitle, { color: theme.text }]}>
-              📊 O MEJ em Números
-            </ThemedText>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.three }}>
+              <ThemedText type="smallBold" style={[styles.sectionTitle, { color: theme.text, marginBottom: 0 }]}>
+                📊 Dashboard de Impacto Real-Time
+              </ThemedText>
+              
+              {/* Semester Dropdown/Chips Selector */}
+              <View style={{ flexDirection: 'row', backgroundColor: theme.background, borderRadius: 8, padding: 3, borderColor: theme.border, borderWidth: 1 }}>
+                {['2025.1', '2025.2', '2026.1'].map(sem => {
+                  const isActive = selectedSemester === sem;
+                  return (
+                    <Pressable
+                      key={sem}
+                      onPress={() => setSelectedSemester(sem)}
+                      style={{
+                        paddingHorizontal: 8,
+                        paddingVertical: 4,
+                        borderRadius: 6,
+                        backgroundColor: isActive ? theme.primary : 'transparent',
+                      }}
+                    >
+                      <ThemedText style={{ fontSize: 10, fontWeight: 'bold', color: isActive ? '#FFF' : theme.text }}>
+                        {sem}
+                      </ThemedText>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </View>
+
+            {/* Metric Category Selector Chips */}
+            <View style={{ flexDirection: 'row', gap: 6, marginBottom: Spacing.four }}>
+              {(['todos', 'faturamento', 'impacto'] as const).map(cat => {
+                const isActive = selectedCategory === cat;
+                const catMap = { todos: '🌟 Todos', faturamento: '💰 Faturamento', impacto: '♻️ Impacto Social' };
+                return (
+                  <Pressable
+                    key={cat}
+                    onPress={() => setSelectedCategory(cat)}
+                    style={{
+                      paddingHorizontal: 12,
+                      paddingVertical: 6,
+                      borderRadius: 16,
+                      backgroundColor: isActive ? theme.primary : theme.backgroundElement,
+                      borderColor: theme.border,
+                      borderWidth: 1,
+                    }}
+                  >
+                    <ThemedText type="smallBold" style={{ fontSize: 11, color: isActive ? '#FFF' : theme.text }}>
+                      {catMap[cat]}
+                    </ThemedText>
+                  </Pressable>
+                );
+              })}
+            </View>
             
-            <View style={styles.metricsGrid}>
-              {METRICS.map((item) => {
-                const animVal = 
-                  item.id === 'm1' ? animatedM1 :
-                  item.id === 'm2' ? animatedM2 :
-                  item.id === 'm3' ? animatedM3 :
-                  animatedM4;
-                  
+            <View style={{ gap: Spacing.three }}>
+              {DYNAMIC_METRICS.filter(item => selectedCategory === 'todos' || item.category === selectedCategory).map((item) => {
+                const metricDetails = item.semesterValues[selectedSemester] || { value: '0', percentage: 0 };
                 return (
                   <View 
                     key={item.id} 
-                    style={[styles.metricCard, { backgroundColor: theme.backgroundElement, borderColor: theme.border, borderWidth: 1 }]}
+                    style={[styles.metricCard, { backgroundColor: theme.backgroundElement, borderColor: theme.border, borderWidth: 1, padding: Spacing.four, flexDirection: 'column' }]}
                   >
-                    <ThemedText type="subtitle" style={[styles.metricValue, { color: theme.primary }]}>
-                      {getFormattedValue(item.id, animVal)}
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                      <ThemedText type="smallBold" style={[styles.metricLabel, { color: theme.text }]}>
+                        {item.label}
+                      </ThemedText>
+                      <ThemedText type="subtitle" style={{ color: theme.primary, fontWeight: 'bold', fontSize: 18 }}>
+                        {metricDetails.value}
+                      </ThemedText>
+                    </View>
+                    
+                    <ThemedText type="small" style={[styles.metricDesc, { color: theme.textSecondary, marginBottom: Spacing.three }]}>
+                      {item.desc}
                     </ThemedText>
-                    <ThemedText type="smallBold" style={[styles.metricLabel, { color: theme.text }]}>
-                      {item.label}
-                    </ThemedText>
-                    <ThemedText type="small" style={[styles.metricDesc, { color: theme.textSecondary }]}>
-                      {item.description}
-                    </ThemedText>
+
+                    {/* Interactive Horizontal Bar Chart representation */}
+                    <View style={{ height: 8, width: '100%', backgroundColor: theme.background, borderRadius: 4, overflow: 'hidden', flexDirection: 'row' }}>
+                      <View 
+                        style={{ 
+                          height: '100%', 
+                          width: `${metricDetails.percentage}%`, 
+                          backgroundColor: theme.primary, 
+                          borderRadius: 4 
+                        }} 
+                      />
+                    </View>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 }}>
+                      <ThemedText style={{ fontSize: 9, color: theme.textSecondary }}>0%</ThemedText>
+                      <ThemedText style={{ fontSize: 9, color: theme.primary, fontWeight: 'bold' }}>meta de impacto: {metricDetails.percentage}% atingido</ThemedText>
+                      <ThemedText style={{ fontSize: 9, color: theme.textSecondary }}>100%</ThemedText>
+                    </View>
                   </View>
                 );
               })}
