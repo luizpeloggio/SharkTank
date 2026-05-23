@@ -23,6 +23,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing, Colors, MaxContentWidth } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { UserProfileHeader } from '@/components/user-profile-header';
 
 export interface Mentor {
   id: string;
@@ -311,6 +312,7 @@ export default function GuiaScreen() {
   return (
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
+        <UserProfileHeader />
         
         {/* HEADER SECTION */}
         <View style={styles.header}>

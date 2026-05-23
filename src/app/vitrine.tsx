@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   StyleSheet,
   ScrollView,
@@ -12,15 +12,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Spacing, Colors, MaxContentWidth } from '@/constants/theme';
+import { Spacing, Colors, MaxContentWidth, Fonts } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-
-interface MetricItem {
-  id: string;
-  value: string;
-  label: string;
-  description: string;
-}
+import { UserProfileHeader } from '@/components/user-profile-header';
 
 interface Testimonial {
   id: string;
@@ -156,6 +150,83 @@ export default function VitrineScreen() {
   const [selectedSemester, setSelectedSemester] = useState<string>('2026.1');
   const [selectedCategory, setSelectedCategory] = useState<string>('todos');
 
+  const visualMode = 'brand';
+
+  // Animation Progress state (0 to 1)
+  const [animationProgress, setAnimationProgress] = useState(0);
+
+  // Trigger counting animation on screen focus and filter changes
+  useFocusEffect(
+    React.useCallback(() => {
+      let start = 0;
+      const duration = 900; // ms
+      const startTime = performance.now();
+      setAnimationProgress(0);
+
+      let animationFrameId: number;
+
+      const tick = (now: number) => {
+        const elapsed = now - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        
+        // Easing function (easeOutExpo) for a premium fluid feel
+        const easeProgress = progress === 1 ? 1 : 1 - Math.pow(2, -10 * progress);
+        setAnimationProgress(easeProgress);
+        
+        if (progress < 1) {
+          animationFrameId = requestAnimationFrame(tick);
+        }
+      };
+      
+      animationFrameId = requestAnimationFrame(tick);
+
+      return () => {
+        cancelAnimationFrame(animationFrameId);
+      };
+    }, [selectedSemester, selectedCategory])
+  );
+
+  // Helper function to animate number formatting dynamically
+  const getAnimatedValue = (valueStr: string, progress: number) => {
+    if (!valueStr) return '';
+    // If it has R$ and Milhões/Mil
+    if (valueStr.includes('Milhões')) {
+      const num = parseFloat(valueStr.replace('R$', '').replace('Milhões', '').trim());
+      const animNum = num * progress;
+      return `R$ ${animNum.toFixed(2)} Milhões`;
+    }
+    if (valueStr.includes('Mil')) {
+      const num = parseFloat(valueStr.replace('R$', '').replace('Mil', '').trim());
+      const animNum = num * progress;
+      return `R$ ${Math.round(animNum)} Mil`;
+    }
+    // If it is just R$ 5.100 (contains dot/comma)
+    if (valueStr.includes('R$')) {
+      const num = parseInt(valueStr.replace('R$', '').replace(/\./g, '').trim());
+      const animNum = Math.floor(num * progress);
+      const formatted = animNum.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+      return `R$ ${formatted}`;
+    }
+    // If it includes "horas"
+    if (valueStr.includes('horas')) {
+      const num = parseInt(valueStr.replace('horas', '').trim());
+      const animNum = Math.floor(num * progress);
+      return `${animNum} horas`;
+    }
+    // If it includes "Projetos"
+    if (valueStr.includes('Projetos')) {
+      const num = parseInt(valueStr.replace('Projetos', '').trim());
+      const animNum = Math.floor(num * progress);
+      return `${animNum} Projetos`;
+    }
+    // General numeric fallback
+    const num = parseFloat(valueStr);
+    if (!isNaN(num)) {
+      return (num * progress).toFixed(0);
+    }
+    return valueStr;
+  };
+
   const handleOpenTestimonial = (name: string) => {
     const msg = `Em breve você poderá assistir à entrevista completa em vídeo com ${name} contando a trajetória detalhada de fundação de EJ!`;
     if (Platform.OS === 'web') {
@@ -165,33 +236,55 @@ export default function VitrineScreen() {
     }
   };
 
+  // Determine strict styling colors based on guidelines and theme context
+  const isDark = theme.text === '#FFFFFF';
+  
+  const getColors = () => {
+    return {
+      bg: theme.background,
+      cardBg: theme.backgroundElement,
+      border: theme.border,
+      borderWidth: 1,
+      primary: '#353C7C', // Strict RGB 53 60 124 Brand Color
+      text: theme.text,
+      textSec: theme.textSecondary,
+      accentBg: theme.backgroundSelected,
+      badgeBg: theme.backgroundSelected,
+      stampBorder: 'solid' as const,
+      progressTrack: theme.background,
+    };
+  };
+
+  const vColors = getColors();
+
   return (
-    <ThemedView style={styles.container}>
+    <ThemedView style={[styles.container, { backgroundColor: vColors.bg }]}>
       <SafeAreaView style={styles.safeArea}>
+        <UserProfileHeader />
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
           
           {/* HEADER */}
           <View style={styles.header}>
-            <ThemedText type="smallBold" style={{ color: theme.primary }}>
-              VITRINE E RECONHECIMENTO
+            <ThemedText type="smallBold" style={{ color: vColors.primary, fontFamily: Fonts.mono }}>
+              [ SISTEMA DE DESIGN & IDENTIDADE ]
             </ThemedText>
-            <ThemedText type="subtitle" style={[styles.headerTitle, { color: theme.text }]}>
-              Cultura & Impacto
+            <ThemedText type="subtitle" style={[styles.headerTitle, { color: vColors.text }]}>
+              Vitrine de Impacto
             </ThemedText>
-            <ThemedText type="small" style={[styles.headerSub, { color: theme.textSecondary }]}>
-              Descubra a força do Movimento Empresa Júnior (MEJ) e veja onde a vibe empreendedora pode te levar.
+            <ThemedText type="small" style={[styles.headerSub, { color: vColors.textSec }]}>
+              Certificação de performance e impacto do Movimento Empresa Júnior potiguar, utilizando exclusivamente as tonalidades homologadas de azul.
             </ThemedText>
           </View>
 
           {/* METRICS DASHBOARD GRID */}
           <View style={styles.sectionContainer}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.three }}>
-              <ThemedText type="smallBold" style={[styles.sectionTitle, { color: theme.text, marginBottom: 0 }]}>
-                📊 Dashboard de Impacto Real-Time
+              <ThemedText type="smallBold" style={[styles.sectionTitle, { color: vColors.text, marginBottom: 0, fontFamily: Fonts.mono }]}>
+                📊 DASHBOARD DE DESEMPENHO
               </ThemedText>
               
               {/* Semester Dropdown/Chips Selector */}
-              <View style={{ flexDirection: 'row', backgroundColor: theme.background, borderRadius: 8, padding: 3, borderColor: theme.border, borderWidth: 1 }}>
+              <View style={{ flexDirection: 'row', backgroundColor: vColors.badgeBg, borderRadius: 8, padding: 3, borderColor: vColors.border, borderWidth: vColors.borderWidth, borderStyle: vColors.stampBorder }}>
                 {['2025.1', '2025.2', '2026.1'].map(sem => {
                   const isActive = selectedSemester === sem;
                   return (
@@ -202,10 +295,10 @@ export default function VitrineScreen() {
                         paddingHorizontal: 8,
                         paddingVertical: 4,
                         borderRadius: 6,
-                        backgroundColor: isActive ? theme.primary : 'transparent',
+                        backgroundColor: isActive ? vColors.primary : 'transparent',
                       }}
                     >
-                      <ThemedText style={{ fontSize: 10, fontWeight: 'bold', color: isActive ? '#FFF' : theme.text }}>
+                      <ThemedText style={{ fontSize: 10, fontWeight: 'bold', fontFamily: Fonts.mono, color: isActive ? '#FFF' : vColors.text }}>
                         {sem}
                       </ThemedText>
                     </Pressable>
@@ -218,7 +311,7 @@ export default function VitrineScreen() {
             <View style={{ flexDirection: 'row', gap: 6, marginBottom: Spacing.four }}>
               {(['todos', 'faturamento', 'impacto'] as const).map(cat => {
                 const isActive = selectedCategory === cat;
-                const catMap = { todos: '🌟 Todos', faturamento: '💰 Faturamento', impacto: '♻️ Impacto Social' };
+                const catMap = { todos: '🌟 Todos', faturamento: '💰 Financeiro', impacto: '♻️ Impacto Social' };
                 return (
                   <Pressable
                     key={cat}
@@ -227,12 +320,13 @@ export default function VitrineScreen() {
                       paddingHorizontal: 12,
                       paddingVertical: 6,
                       borderRadius: 16,
-                      backgroundColor: isActive ? theme.primary : theme.backgroundElement,
-                      borderColor: theme.border,
-                      borderWidth: 1,
+                      backgroundColor: isActive ? vColors.primary : vColors.cardBg,
+                      borderColor: vColors.border,
+                      borderWidth: vColors.borderWidth,
+                      borderStyle: vColors.stampBorder,
                     }}
                   >
-                    <ThemedText type="smallBold" style={{ fontSize: 11, color: isActive ? '#FFF' : theme.text }}>
+                    <ThemedText type="smallBold" style={{ fontSize: 11, fontFamily: Fonts.mono, color: isActive ? '#FFF' : vColors.text }}>
                       {catMap[cat]}
                     </ThemedText>
                   </Pressable>
@@ -240,42 +334,68 @@ export default function VitrineScreen() {
               })}
             </View>
             
+            {/* Dynamic Metric Technical Chips */}
             <View style={{ gap: Spacing.three }}>
               {DYNAMIC_METRICS.filter(item => selectedCategory === 'todos' || item.category === selectedCategory).map((item) => {
                 const metricDetails = item.semesterValues[selectedSemester] || { value: '0', percentage: 0 };
+                const animatedPercentage = Math.round(animationProgress * metricDetails.percentage);
+                const displayVal = getAnimatedValue(metricDetails.value, animationProgress);
+
                 return (
                   <View 
                     key={item.id} 
-                    style={[styles.metricCard, { backgroundColor: theme.backgroundElement, borderColor: theme.border, borderWidth: 1, padding: Spacing.four, flexDirection: 'column' }]}
+                    style={[
+                      styles.metricCard, 
+                      { 
+                        backgroundColor: vColors.cardBg, 
+                        borderColor: vColors.border, 
+                        borderWidth: vColors.borderWidth, 
+                        borderStyle: vColors.stampBorder,
+                        padding: Spacing.four, 
+                        flexDirection: 'column' 
+                      }
+                    ]}
                   >
-                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                      <ThemedText type="smallBold" style={[styles.metricLabel, { color: theme.text }]}>
-                        {item.label}
-                      </ThemedText>
-                      <ThemedText type="subtitle" style={{ color: theme.primary, fontWeight: 'bold', fontSize: 18 }}>
-                        {metricDetails.value}
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
+                      <View style={{ flex: 1, paddingRight: Spacing.two }}>
+                        <ThemedText type="smallBold" style={{ color: vColors.text, fontSize: 13 }}>
+                          {item.label}
+                        </ThemedText>
+                        <ThemedText type="small" style={{ color: vColors.textSec, fontSize: 11, marginTop: 2 }}>
+                          {item.desc}
+                        </ThemedText>
+                      </View>
+                      <ThemedText type="subtitle" style={{ color: vColors.primary, fontWeight: '900', fontSize: 18, fontFamily: Fonts.mono }}>
+                        {displayVal}
                       </ThemedText>
                     </View>
-                    
-                    <ThemedText type="small" style={[styles.metricDesc, { color: theme.textSecondary, marginBottom: Spacing.three }]}>
-                      {item.desc}
-                    </ThemedText>
 
+                    {/* Technical Specification Label inside the card */}
+                    <View style={[styles.cardSpecLabel, { borderColor: vColors.border, borderStyle: vColors.stampBorder }]}>
+                      <ThemedText style={{ fontSize: 8, fontFamily: Fonts.mono, color: vColors.textSec }}>
+                        APLICAÇÃO: CORES OFICIAIS  |  CERTIFICAÇÃO: MEJ RN
+                      </ThemedText>
+                    </View>
+ 
                     {/* Interactive Horizontal Bar Chart representation */}
-                    <View style={{ height: 8, width: '100%', backgroundColor: theme.background, borderRadius: 4, overflow: 'hidden', flexDirection: 'row' }}>
+                    <View style={{ height: 8, width: '100%', backgroundColor: vColors.progressTrack, borderRadius: 4, overflow: 'hidden', flexDirection: 'row', borderColor: vColors.border, borderWidth: 0, borderStyle: vColors.stampBorder }}>
                       <View 
                         style={{ 
                           height: '100%', 
-                          width: `${metricDetails.percentage}%`, 
-                          backgroundColor: theme.primary, 
+                          width: `${animatedPercentage}%`, 
+                          backgroundColor: vColors.primary, 
+                          borderColor: vColors.border,
+                          borderWidth: 0,
                           borderRadius: 4 
                         }} 
                       />
                     </View>
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 }}>
-                      <ThemedText style={{ fontSize: 9, color: theme.textSecondary }}>0%</ThemedText>
-                      <ThemedText style={{ fontSize: 9, color: theme.primary, fontWeight: 'bold' }}>meta de impacto: {metricDetails.percentage}% atingido</ThemedText>
-                      <ThemedText style={{ fontSize: 9, color: theme.textSecondary }}>100%</ThemedText>
+                      <ThemedText style={{ fontSize: 8, fontFamily: Fonts.mono, color: vColors.textSec }}>MÍNIMO</ThemedText>
+                      <ThemedText style={{ fontSize: 8, fontFamily: Fonts.mono, color: vColors.primary, fontWeight: 'bold' }}>
+                        META: {animatedPercentage}% CERTIFICADO
+                      </ThemedText>
+                      <ThemedText style={{ fontSize: 8, fontFamily: Fonts.mono, color: vColors.textSec }}>MÁXIMO</ThemedText>
                     </View>
                   </View>
                 );
@@ -286,11 +406,11 @@ export default function VitrineScreen() {
           {/* "ONDE ELES ESTÃO AGORA" CAROUSEL */}
           <View style={styles.sectionContainer}>
             <View style={styles.sectionHeaderRow}>
-              <ThemedText type="smallBold" style={[styles.sectionTitle, { color: theme.text }]}>
-                ⭐ Onde Eles Estão Agora?
+              <ThemedText type="smallBold" style={[styles.sectionTitle, { color: vColors.text, fontFamily: Fonts.mono }]}>
+                ⭐ TRAJETÓRIAS CORPORATIVAS
               </ThemedText>
-              <ThemedText type="code" style={{ color: theme.primary, fontWeight: 'bold' }}>
-                EX-MEMBROS
+              <ThemedText style={{ fontSize: 10, fontFamily: Fonts.mono, color: vColors.primary, fontWeight: 'bold' }}>
+                [ EX-MEMBROS REGISTRADOS ]
               </ThemedText>
             </View>
 
@@ -302,41 +422,57 @@ export default function VitrineScreen() {
               contentContainerStyle={styles.carouselContainer}
               renderItem={({ item }) => (
                 <Pressable 
-                  style={[styles.testimonialCard, { backgroundColor: theme.backgroundElement, borderColor: theme.border, borderWidth: 1 }]}
+                  style={[
+                    styles.testimonialCard, 
+                    { 
+                      backgroundColor: vColors.cardBg, 
+                      borderColor: vColors.border, 
+                      borderWidth: vColors.borderWidth,
+                      borderStyle: vColors.stampBorder,
+                    }
+                  ]}
                   onPress={() => handleOpenTestimonial(item.name)}
                 >
                   {/* Testimonial Header */}
                   <View style={styles.testiHeader}>
-                    <View style={[styles.testiAvatarBox, { backgroundColor: theme.backgroundSelected }]}>
+                    <View style={[styles.testiAvatarBox, { backgroundColor: vColors.accentBg }]}>
                       <ThemedText style={{ fontSize: 24 }}>{item.avatar}</ThemedText>
                     </View>
                     <View style={styles.testiMeta}>
-                      <ThemedText type="smallBold" style={[styles.testiName, { color: theme.text }]}>
+                      <ThemedText type="smallBold" style={[styles.testiName, { color: vColors.text }]}>
                         {item.name}
                       </ThemedText>
-                      <ThemedText type="code" style={[styles.testiRole, { color: theme.textSecondary }]}>
+                      <ThemedText style={[styles.testiRole, { color: vColors.textSec, fontFamily: Fonts.mono, fontSize: 8 }]}>
                         {item.previousRole}
                       </ThemedText>
                     </View>
                   </View>
 
                   {/* Quote */}
-                  <ThemedText type="small" style={[styles.testiQuote, { color: theme.text }]}>
+                  <ThemedText type="small" style={[styles.testiQuote, { color: vColors.text, fontStyle: 'italic' }]}>
                     "{item.quote}"
                   </ThemedText>
 
                   {/* Testimonial Footer */}
-                  <View style={styles.testiFooter}>
-                    <ThemedText type="code" style={[styles.testiCompany, { color: theme.textSecondary }]}>
+                  <View style={[styles.testiFooter, { borderColor: vColors.border, borderStyle: vColors.stampBorder }]}>
+                    <ThemedText style={[styles.testiCompany, { color: vColors.primary, fontFamily: Fonts.mono, fontSize: 9 }]}>
                       💼 {item.currentCompany}
                     </ThemedText>
                     <ThemedText style={{ fontSize: 16 }}>{item.companyLogo}</ThemedText>
                   </View>
                   
-                  {/* Play Video Button */}
-                  <View style={[styles.videoBadge, { backgroundColor: theme.backgroundSelected, borderColor: theme.border, borderWidth: 1 }]}>
-                    <ThemedText type="code" style={{ color: theme.primary, fontWeight: 'bold', fontSize: 10 }}>
-                      ▶ ASSISTIR TRAJETÓRIA
+                  {/* Play Video Button as a Technical Stamp Outline */}
+                  <View style={[
+                    styles.videoBadge, 
+                    { 
+                      backgroundColor: vColors.badgeBg, 
+                      borderColor: vColors.border, 
+                      borderWidth: 1,
+                      borderStyle: vColors.stampBorder,
+                    }
+                  ]}>
+                    <ThemedText style={{ color: vColors.primary, fontWeight: 'bold', fontSize: 9, fontFamily: Fonts.mono }}>
+                      ▶ ASSISTIR RELATÓRIO VÍDEO
                     </ThemedText>
                   </View>
                 </Pressable>
@@ -346,38 +482,56 @@ export default function VitrineScreen() {
 
           {/* LIFESTYLE GALLERY */}
           <View style={styles.sectionContainer}>
-            <ThemedText type="smallBold" style={[styles.sectionTitle, { color: theme.text }]}>
-              ⚡ O Estilo de Vida Júnior
+            <ThemedText type="smallBold" style={[styles.sectionTitle, { color: vColors.text, fontFamily: Fonts.mono }]}>
+              ⚡ CRONOGRAMA DE CELEBRAÇÕES MEJ
             </ThemedText>
-            <ThemedText type="small" style={[styles.sectionSub, { color: theme.textSecondary }]}>
-              O ecossistema é muito trabalho, mas também celebração, premiações e uma união inexplicável.
+            <ThemedText type="small" style={[styles.sectionSub, { color: vColors.textSec }]}>
+              Certificação de eventos, premiações e encontros oficiais homologados pela Federação.
             </ThemedText>
 
             <View style={styles.galleryList}>
               {GALLERY.map((item) => (
                 <View 
                   key={item.id} 
-                  style={[styles.galleryCard, { backgroundColor: theme.backgroundElement, borderColor: theme.border, borderWidth: 1 }]}
+                  style={[
+                    styles.galleryCard, 
+                    { 
+                      backgroundColor: vColors.cardBg, 
+                      borderColor: vColors.border, 
+                      borderWidth: vColors.borderWidth,
+                      borderStyle: vColors.stampBorder,
+                    }
+                  ]}
                 >
-                  <View style={[styles.galleryEmojiContainer, { backgroundColor: theme.backgroundSelected }]}>
+                  <View style={[styles.galleryEmojiContainer, { backgroundColor: vColors.accentBg }]}>
                     <ThemedText style={{ fontSize: 32 }}>{item.emoji}</ThemedText>
                   </View>
                   <View style={styles.galleryInfo}>
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <ThemedText type="smallBold" style={[styles.galleryTitle, { color: theme.text }]}>
+                      <ThemedText type="smallBold" style={[styles.galleryTitle, { color: vColors.text }]}>
                         {item.title}
                       </ThemedText>
-                      <ThemedText type="code" style={[styles.galleryLoc, { color: theme.primary }]}>
+                      <ThemedText style={[styles.galleryLoc, { color: vColors.primary, fontFamily: Fonts.mono, fontSize: 9 }]}>
                         📍 {item.location}
                       </ThemedText>
                     </View>
-                    <ThemedText type="small" style={[styles.galleryVibes, { color: theme.textSecondary }]}>
+                    <ThemedText type="small" style={[styles.galleryVibes, { color: vColors.textSec, marginTop: 4 }]}>
                       {item.vibes}
                     </ThemedText>
                   </View>
                 </View>
               ))}
             </View>
+          </View>
+
+          {/* TECHNICAL Brand warning stamp at bottom */}
+          <View style={[styles.brandNotice, { borderColor: vColors.border, borderStyle: vColors.stampBorder }]}>
+            <ThemedText style={{ fontSize: 9, color: vColors.textSec, fontFamily: Fonts.mono, textAlign: 'center' }}>
+              DOCUMENTO NORMATIVO EXCLUSIVO DO MEJ POTIGUAR
+            </ThemedText>
+            <ThemedText style={{ fontSize: 8, color: vColors.primary, fontFamily: Fonts.mono, textAlign: 'center', marginTop: 2, fontWeight: 'bold' }}>
+              PROIBIDO USO DE CORES SECUNDÁRIAS, TEXTURAS OU ADORNOS NÃO AUTORIZADOS.
+            </ThemedText>
           </View>
 
           <View style={{ height: Spacing.five }} />
@@ -411,7 +565,6 @@ const styles = StyleSheet.create({
     lineHeight: 32,
   },
   headerSub: {
-    color: '#94A3B8',
     marginTop: Spacing.one,
     lineHeight: 18,
   },
@@ -419,13 +572,13 @@ const styles = StyleSheet.create({
     marginTop: Spacing.four,
   },
   sectionTitle: {
-    fontSize: 16,
-    color: '#FFF',
+    fontSize: 14,
+    fontWeight: 'bold',
     marginBottom: Spacing.two,
   },
   sectionSub: {
-    color: '#64748B',
     marginBottom: Spacing.three,
+    lineHeight: 16,
   },
   sectionHeaderRow: {
     flexDirection: 'row',
@@ -434,35 +587,39 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.two,
   },
   
-  // METRICS GRID
-  metricsGrid: {
+  // BRAND STYLES SEPARATOR CONTROLS
+  controlContainer: {
+    marginTop: Spacing.two,
+    padding: Spacing.three,
+    borderRadius: 12,
+  },
+  tabSelector: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: Spacing.three,
+    gap: 4,
+    justifyContent: 'space-between',
   },
-  metricCard: {
-    width: Platform.OS === 'web' ? '47%' : '47%',
-    flexGrow: 1,
-    minWidth: 150,
-    borderRadius: 16,
-    padding: Spacing.three + 2,
+  tabBtn: {
+    flex: 1,
+    paddingVertical: 8,
+    borderRadius: 6,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.05)',
+    borderColor: 'transparent',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  metricValue: {
-    fontSize: 32,
-    fontWeight: '800',
-    color: '#003366', // High energy YC orange
+
+
+  // METRICS
+  metricCard: {
+    width: '100%',
+    borderRadius: 16,
+    borderWidth: 1,
   },
-  metricLabel: {
-    color: '#FFF',
-    fontSize: 13,
-    marginVertical: Spacing.one / 2,
-  },
-  metricDesc: {
-    color: '#64748B',
-    fontSize: 11,
-    lineHeight: 14,
+  cardSpecLabel: {
+    borderTopWidth: 1,
+    paddingTop: 6,
+    marginTop: Spacing.two,
+    marginBottom: Spacing.three,
   },
 
   // TESTIMONIAL CAROUSEL
@@ -474,8 +631,6 @@ const styles = StyleSheet.create({
     width: 290,
     borderRadius: 20,
     padding: Spacing.four,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.05)',
     justifyContent: 'space-between',
   },
   testiHeader: {
@@ -488,7 +643,6 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: 'rgba(0, 51, 102, 0.1)',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -496,16 +650,12 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   testiName: {
-    color: '#FFF',
     fontSize: 15,
   },
   testiRole: {
-    color: '#94A3B8',
-    fontSize: 9,
+    marginTop: 2,
   },
   testiQuote: {
-    color: '#CBD5E1',
-    fontStyle: 'italic',
     lineHeight: 18,
     fontSize: 12,
     marginBottom: Spacing.three,
@@ -515,19 +665,15 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.05)',
     paddingTop: Spacing.two,
     marginBottom: Spacing.two,
   },
   testiCompany: {
-    color: '#00E5FF',
     fontWeight: 'bold',
-    fontSize: 10,
   },
   videoBadge: {
-    backgroundColor: 'rgba(0, 51, 102, 0.12)',
-    borderRadius: 6,
-    paddingVertical: Spacing.one,
+    borderRadius: 8,
+    paddingVertical: Spacing.one + 2,
     alignItems: 'center',
   },
 
@@ -539,15 +685,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     borderRadius: 16,
     padding: Spacing.three + 2,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.05)',
     alignItems: 'center',
   },
   galleryEmojiContainer: {
     width: 60,
     height: 60,
     borderRadius: 12,
-    backgroundColor: 'rgba(255, 255, 255, 0.03)',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: Spacing.three,
@@ -556,18 +699,20 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   galleryTitle: {
-    color: '#FFF',
     fontSize: 15,
   },
   galleryLoc: {
-    color: '#003366',
-    fontSize: 9,
     fontWeight: 'bold',
   },
   galleryVibes: {
-    color: '#94A3B8',
     fontSize: 12,
     marginTop: 4,
     lineHeight: 16,
+  },
+  brandNotice: {
+    marginTop: Spacing.five,
+    padding: Spacing.three,
+    borderRadius: 8,
+    borderWidth: 1,
   },
 });

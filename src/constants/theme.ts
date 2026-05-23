@@ -14,7 +14,7 @@ export const Colors = {
     backgroundElement: '#FFFFFF', // Pure white card
     backgroundSelected: '#E2E8F0', // Slate 200 selection
     textSecondary: '#475569',     // Slate 600 subtext
-    primary: '#0000cc',           // Royal brand blue
+    primary: '#353C7C',           // Strict brand blue
     border: '#E2E8F0',            // Slate 200 borders
   },
   dark: {
@@ -23,7 +23,7 @@ export const Colors = {
     backgroundElement: '#131C2E',  // Card background
     backgroundSelected: '#202D44', // Card selected state
     textSecondary: '#94A3B8',      // Soft subtext
-    primary: '#4d4dff',            // Accessible bright brand blue
+    primary: '#353C7C',           // Strict brand blue
     border: '#1E293B',             // Slate 800 borders
   },
 } as const;

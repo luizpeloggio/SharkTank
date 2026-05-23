@@ -16,6 +16,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing, Colors, MaxContentWidth } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { UserProfileHeader } from '@/components/user-profile-header';
 
 export interface B2BService {
   id: string;
@@ -217,6 +218,7 @@ export default function FeedScreen() {
   return (
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
+        <UserProfileHeader />
         
         {/* HEADER SECTION */}
         <View style={styles.header}>
@@ -227,45 +229,6 @@ export default function FeedScreen() {
             <ThemedText type="subtitle" style={[styles.headerTitle, { color: theme.text }]}>
               Radar de EJs
             </ThemedText>
-          </View>
-          
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-            {/* Intelligent Notification Bell */}
-            <Pressable 
-              onPress={() => setIsNotificationsVisible(true)}
-              style={{
-                position: 'relative',
-                width: 38,
-                height: 38,
-                borderRadius: 19,
-                backgroundColor: theme.backgroundElement,
-                borderColor: theme.border,
-                borderWidth: 1,
-                justifyContent: 'center',
-                alignItems: 'center',
-              }}
-            >
-              <ThemedText style={{ fontSize: 18 }}>🔔</ThemedText>
-              {notifications.some(n => n.unread) && (
-                <View 
-                  style={{
-                    position: 'absolute',
-                    top: 6,
-                    right: 6,
-                    width: 8,
-                    height: 8,
-                    borderRadius: 4,
-                    backgroundColor: '#EF4444',
-                  }}
-                />
-              )}
-            </Pressable>
-
-            <View style={[styles.roleTag, { backgroundColor: theme.backgroundSelected, borderColor: theme.border }]}>
-              <ThemedText type="code" style={[styles.roleTagText, { color: theme.text }]}>
-                Perfis: {userRole.toUpperCase()}
-              </ThemedText>
-            </View>
           </View>
         </View>
 

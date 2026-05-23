@@ -18,6 +18,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing, Colors, MaxContentWidth } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { UserProfileHeader } from '@/components/user-profile-header';
 
 const SHARK_AVATARS: { [key: string]: any } = {
   'shark-1': require('@/assets/images/Amanda.jpg'),
@@ -186,10 +187,10 @@ export default function SharkTankScreen() {
     if (totalVotes === 0) return 0;
     return Math.round((votes / totalVotes) * 100);
   };
-
   return (
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
+        <UserProfileHeader />
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
           
           {/* SYMPLA SYMPLA EVENTO PANEL */}

@@ -15,13 +15,15 @@ AsyncStorage.getItem(THEME_KEY).then((val) => {
   }
 });
 
-export const getThemePreference = () => currentTheme;
+export function getThemePreference() {
+  return currentTheme;
+}
 
-export const setThemePreference = async (theme: 'light' | 'dark') => {
+export async function setThemePreference(theme: 'light' | 'dark') {
   currentTheme = theme;
   await AsyncStorage.setItem(THEME_KEY, theme);
   listeners.forEach((l) => l());
-};
+}
 
 export function useColorScheme() {
   const deviceScheme = useDeviceColorScheme();
