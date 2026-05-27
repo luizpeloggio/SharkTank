@@ -64,6 +64,7 @@ export default function TabLayout() {
             <DrawerProvider>
               <Stack screenOptions={{ headerShown: false }}>
                 <Stack.Screen name="(tabs)" />
+                <Stack.Screen name="profile" />
                 <Stack.Screen name="company/index" />
               </Stack>
               <AppDrawer />

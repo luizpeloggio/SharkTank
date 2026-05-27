@@ -6,14 +6,14 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
-type RouteName = 'index' | 'guia' | 'vitrine' | 'sharktank' | 'profile';
+type RouteName = 'index' | 'guia' | 'vitrine' | 'events' | 'sharktank';
 
 const ICON_MAP: Record<RouteName, any> = {
   index: require('@/assets/images/tabIcons/cardapio.png'),
   guia: require('@/assets/images/tabIcons/caminho-do-segmento.png'),
   vitrine: require('@/assets/images/tabIcons/foguete-inclinado.png'),
+  events: require('@/assets/images/calendario.png'),
   sharktank: require('@/assets/images/tubaraozao.png'),
-  profile: require('@/assets/images/tabIcons/profile.png'),
 };
 
 export default function AppTabs() {
@@ -30,12 +30,12 @@ export default function AppTabs() {
             <TabButton routeName="vitrine">Vitrine</TabButton>
           </TabTrigger>
 
-          <TabTrigger name="sharktank" href="/sharktank" asChild>
-            <TabButton routeName="sharktank">Shark Tank</TabButton>
+          <TabTrigger name="events" href="/events" asChild>
+            <TabButton routeName="events">Eventos</TabButton>
           </TabTrigger>
 
-          <TabTrigger name="profile" href="/profile" asChild>
-            <TabButton routeName="profile">Perfil</TabButton>
+          <TabTrigger name="sharktank" href="/sharktank" asChild>
+            <TabButton routeName="sharktank">Shark Tank</TabButton>
           </TabTrigger>
 
           <TabTrigger name="guia" href="/guia" asChild>
@@ -89,7 +89,7 @@ function TabButton({
       style={({ pressed }) => [
         styles.pressable,
         routeName === 'vitrine' && styles.leftCenterSpacing,
-        routeName === 'sharktank' && styles.rightCenterSpacing,
+        routeName === 'events' && styles.rightCenterSpacing,
         isCenter && styles.centerPressable,
         pressed && styles.pressed,
         isCenter && styles.centerButtonWrap,

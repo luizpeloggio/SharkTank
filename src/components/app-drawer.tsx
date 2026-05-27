@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useRef } from 'react';
-import { Animated, Platform, Pressable, StyleSheet, View } from 'react-native';
+import React, { useContext, useEffect, useMemo, useRef } from 'react';
+import { Alert, Animated, Platform, Pressable, StyleSheet, View } from 'react-native';
 import { router } from 'expo-router';
 import { useTheme } from '@/hooks/use-theme';
 import { ThemedText } from '@/components/themed-text';
@@ -7,6 +7,8 @@ import { Spacing } from '@/constants/theme';
 import { useDrawer } from '@/contexts/drawer-context';
 import { useCompany } from '@/contexts/company-context';
 import { canSeeCompanyAdmin } from '@/services/permissions';
+import { AuthContext } from '@/contexts/auth-context';
+import { setThemePreference, useColorScheme } from '@/hooks/use-color-scheme';
 
 function DrawerItem({ label, onPress }: { label: string; onPress: () => void }) {
   const theme = useTheme();
@@ -28,10 +30,13 @@ function DrawerItem({ label, onPress }: { label: string; onPress: () => void }) 
 
 export function AppDrawer() {
   const theme = useTheme();
+  const colorScheme = useColorScheme();
+  const { logout } = useContext(AuthContext);
   const { isOpen, close } = useDrawer();
   const { companyId, company, membership } = useCompany();
 
   const isCompanyLeader = canSeeCompanyAdmin(membership);
+  const isDarkMode = colorScheme === 'dark';
   const translateX = useRef(new Animated.Value(-280)).current;
   const opacity = useRef(new Animated.Value(0)).current;
 
@@ -48,6 +53,15 @@ export function AppDrawer() {
     if (!companyId) return 'Sem empresa';
     return company?.name ?? 'Minha empresa';
   }, [company?.name, companyId]);
+
+  const handleContactSupport = () => {
+    const msg = 'Abrindo chamado oficial de suporte na Coordenadoria de Extensão UERN. Retorno em 24h.';
+    if (Platform.OS === 'web') {
+      alert(msg);
+    } else {
+      Alert.alert('Suporte UERN', msg);
+    }
+  };
 
   if (!isOpen) return null;
 
@@ -74,17 +88,6 @@ export function AppDrawer() {
           <ThemedText type="subtitle" style={{ color: theme.text, marginTop: 4 }}>
             Navegação
           </ThemedText>
-        </View>
-
-        <View style={[styles.section, { borderTopColor: theme.border }]}>
-          <ThemedText type="smallBold" style={{ color: theme.textSecondary, marginBottom: Spacing.one }}>
-            APP
-          </ThemedText>
-          <DrawerItem label="Principal" onPress={() => { close(); router.push('/'); }} />
-          <DrawerItem label="Vitrine" onPress={() => { close(); router.push('/vitrine'); }} />
-          <DrawerItem label="Shark Tank" onPress={() => { close(); router.push('/sharktank'); }} />
-          <DrawerItem label="Perfil" onPress={() => { close(); router.push('/profile'); }} />
-          <DrawerItem label="Guia" onPress={() => { close(); router.push('/guia'); }} />
         </View>
 
         <View style={[styles.section, { borderTopColor: theme.border }]}>
@@ -136,6 +139,45 @@ export function AppDrawer() {
             </>
           )}
         </View>
+
+        <View style={[styles.section, { borderTopColor: theme.border }]}>
+          <ThemedText type="smallBold" style={{ color: theme.textSecondary, marginBottom: Spacing.one }}>
+            CONTA
+          </ThemedText>
+
+          <View style={[styles.themeRow, { borderBottomColor: theme.border }]}>
+            <View>
+              <ThemedText type="smallBold" style={{ color: theme.text }}>
+                Modo escuro
+              </ThemedText>
+              <ThemedText type="small" style={{ color: theme.textSecondary, fontSize: 11 }}>
+                Alternar aparência
+              </ThemedText>
+            </View>
+            <View style={[styles.themeSegmentedControl, { backgroundColor: theme.background, borderColor: theme.border }]}>
+              <Pressable
+                onPress={() => setThemePreference('light')}
+                style={[styles.themeSegment, !isDarkMode && { backgroundColor: theme.primary }]}
+              >
+                <ThemedText type="smallBold" style={{ color: !isDarkMode ? '#FFFFFF' : theme.textSecondary }}>
+                  Claro
+                </ThemedText>
+              </Pressable>
+              <Pressable
+                onPress={() => setThemePreference('dark')}
+                style={[styles.themeSegment, isDarkMode && { backgroundColor: theme.primary }]}
+              >
+                <ThemedText type="smallBold" style={{ color: isDarkMode ? '#FFFFFF' : theme.textSecondary }}>
+                  Escuro
+                </ThemedText>
+              </Pressable>
+            </View>
+          </View>
+
+          <DrawerItem label="Editar perfil" onPress={() => { close(); router.push('/profile?edit=1'); }} />
+          <DrawerItem label="Suporte técnico" onPress={() => { close(); handleContactSupport(); }} />
+          <DrawerItem label="Sair da conta" onPress={() => { close(); logout(); }} />
+        </View>
       </Animated.View>
     </View>
   );
@@ -172,6 +214,23 @@ const styles = StyleSheet.create({
   item: {
     paddingVertical: Spacing.two,
     borderBottomWidth: 1,
+  },
+  themeRow: {
+    paddingVertical: Spacing.two,
+    borderBottomWidth: 1,
+    gap: Spacing.two,
+  },
+  themeSegmentedControl: {
+    flexDirection: 'row',
+    borderRadius: 10,
+    borderWidth: 1,
+    padding: 3,
+  },
+  themeSegment: {
+    flex: 1,
+    paddingVertical: 7,
+    borderRadius: 7,
+    alignItems: 'center',
   },
 });
 

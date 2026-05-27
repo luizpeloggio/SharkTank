@@ -12,14 +12,14 @@ import {
   Text,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useColorScheme, setThemePreference } from '@/hooks/use-color-scheme';
 import * as ImagePicker from 'expo-image-picker';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
-import { AppStorage, UserRole } from '@/services/storage';
+import { useLocalSearchParams } from 'expo-router';
+import { AppStorage } from '@/services/storage';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Spacing, Colors, MaxContentWidth } from '@/constants/theme';
+import { Spacing, MaxContentWidth } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { AuthContext } from '@/contexts/auth-context';
 import { UserProfileHeader } from '@/components/user-profile-header';
@@ -102,16 +102,8 @@ function StrengthIndicator({ text }: { text: string }) {
 
 export default function ProfileScreen() {
   const theme = useTheme();
-  const { session, logout, updateSession } = useContext(AuthContext);
-
-  // Manual dark / light mode toggle
-  const currentScheme = useColorScheme();
-  const isDarkMode = currentScheme === 'dark';
-  
-  const toggleTheme = () => {
-    const nextTheme = isDarkMode ? 'light' : 'dark';
-    setThemePreference(nextTheme);
-  };
+  const params = useLocalSearchParams<{ edit?: string }>();
+  const { session, updateSession } = useContext(AuthContext);
 
   // Stats States
   const [completedStepsCount, setCompletedStepsCount] = useState<number>(0);
@@ -137,6 +129,12 @@ export default function ProfileScreen() {
       setEditName(session.name || '');
     }
   }, [session]);
+
+  useEffect(() => {
+    if (params.edit === '1') {
+      setIsEditSectionOpen(true);
+    }
+  }, [params.edit]);
 
   const handleSaveName = async () => {
     if (!session) return;
@@ -368,14 +366,6 @@ export default function ProfileScreen() {
     }
   };
 
-  const handleContactSupport = () => {
-    const msg = 'Abrindo chamado oficial de suporte na Coordenadoria de Extensão UERN. Retorno em 24h.';
-    if (Platform.OS === 'web') {
-      alert(msg);
-    } else {
-      Alert.alert('Suporte UERN', msg);
-    }
-  };
   return (
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
@@ -459,72 +449,15 @@ export default function ProfileScreen() {
 
 
 
-          {/* ADMINISTRATIVE COMMANDS */}
+          {isEditSectionOpen && (
           <View style={styles.sectionContainer}>
             <ThemedText type="smallBold" style={[styles.sectionTitle, { color: theme.text }]}>
-              🛠️ Comandos de Gestão do Sistema
+              Editar perfil
             </ThemedText>
 
             <View style={[styles.optionsList, { backgroundColor: theme.backgroundElement, borderColor: theme.border, borderWidth: 1 }]}>
 
-              {/* Theme Preference Option */}
-              <View style={[styles.optionRow, { borderBottomColor: theme.border }]}>
-                <View style={styles.optionLeft}>
-                  <ThemedText style={{ fontSize: 18 }}>🌓</ThemedText>
-                  <View>
-                    <ThemedText type="smallBold" style={{ color: theme.text }}>Modo Escuro</ThemedText>
-                    <ThemedText type="small" style={{ color: theme.textSecondary, fontSize: 11 }}>Alternar entre modo claro e modo escuro</ThemedText>
-                  </View>
-                </View>
-                <View
-                  style={[
-                    styles.themeSegmentedControl,
-                    { backgroundColor: theme.background, borderColor: theme.border, borderWidth: 1 },
-                  ]}>
-                  <Pressable
-                    onPress={() => setThemePreference('light')}
-                    style={[
-                      styles.themeSegment,
-                      !isDarkMode && { backgroundColor: theme.primary },
-                    ]}>
-                    <ThemedText
-                      type="smallBold"
-                      style={{ color: !isDarkMode ? '#FFFFFF' : theme.textSecondary }}>
-                      Claro
-                    </ThemedText>
-                  </Pressable>
-                  <Pressable
-                    onPress={() => setThemePreference('dark')}
-                    style={[
-                      styles.themeSegment,
-                      isDarkMode && { backgroundColor: theme.primary },
-                    ]}>
-                    <ThemedText
-                      type="smallBold"
-                      style={{ color: isDarkMode ? '#FFFFFF' : theme.textSecondary }}>
-                      Escuro
-                    </ThemedText>
-                  </Pressable>
-                </View>
-              </View>
-
-              {/* Editar Perfil Option */}
-              <Pressable 
-                style={[styles.optionRow, { borderBottomColor: theme.border }]}
-                onPress={() => setIsEditSectionOpen(!isEditSectionOpen)}
-              >
-                <View style={styles.optionLeft}>
-                  <ThemedText style={{ fontSize: 18 }}>📝</ThemedText>
-                  <View>
-                    <ThemedText type="smallBold" style={{ color: theme.text }}>Editar Perfil</ThemedText>
-                    <ThemedText type="small" style={{ color: theme.textSecondary, fontSize: 11 }}>Gerencie seu nome, usuário e credenciais de acesso</ThemedText>
-                  </View>
-                </View>
-                <ThemedText style={{ color: theme.textSecondary }}>{isEditSectionOpen ? '▼' : '➔'}</ThemedText>
-              </Pressable>
-
-              {isEditSectionOpen && (
-                <View style={{ padding: Spacing.four, gap: Spacing.four, borderBottomWidth: 1, borderBottomColor: theme.border }}>
+              <View style={{ padding: Spacing.four, gap: Spacing.four }}>
                   {/* 1. Nome Completo Card */}
                   <View style={[styles.optionsList, { backgroundColor: theme.backgroundElement, borderColor: theme.border, borderWidth: 1, padding: Spacing.four, gap: Spacing.three }]}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: Spacing.one }}>
@@ -652,42 +585,9 @@ export default function ProfileScreen() {
                     </Pressable>
                   </View>
                 </View>
-              )}
-              
-              {/* Reset Option */}
-
-              {/* Support Option */}
-              <Pressable 
-                style={[styles.optionRow, { borderBottomColor: theme.border }]}
-                onPress={handleContactSupport}
-              >
-                <View style={styles.optionLeft}>
-                  <ThemedText style={{ fontSize: 18 }}>📞</ThemedText>
-                  <View>
-                    <ThemedText type="smallBold" style={{ color: theme.text }}>Suporte Técnico PROEX / UERN</ThemedText>
-                    <ThemedText type="small" style={{ color: theme.textSecondary, fontSize: 11 }}>Registrar chamado acadêmico</ThemedText>
-                  </View>
-                </View>
-                <ThemedText style={{ color: theme.textSecondary }}>➔</ThemedText>
-              </Pressable>
-
-              {/* Logout Option */}
-              <Pressable 
-                style={[styles.optionRow, { borderBottomWidth: 0 }]}
-                onPress={logout}
-              >
-                <View style={styles.optionLeft}>
-                  <ThemedText style={{ fontSize: 18 }}>🚪</ThemedText>
-                  <View>
-                    <ThemedText type="smallBold" style={{ color: theme.primary }}>Sair da Minha Conta</ThemedText>
-                    <ThemedText type="small" style={{ color: theme.textSecondary, fontSize: 11 }}>Fazer logout e voltar para a tela de login</ThemedText>
-                  </View>
-                </View>
-                <ThemedText style={{ color: theme.primary }}>➔</ThemedText>
-              </Pressable>
-
             </View>
           </View>
+          )}
 
           <View style={{ height: Spacing.six }} />
         </ScrollView>

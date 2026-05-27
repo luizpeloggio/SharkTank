@@ -4,6 +4,7 @@ import { AuthContext } from '@/contexts/auth-context';
 import { useTheme } from '@/hooks/use-theme';
 import { useColorScheme, setThemePreference } from '@/hooks/use-color-scheme';
 import { useDrawer } from '@/contexts/drawer-context';
+import { router } from 'expo-router';
 
 const DayNightSwitch = ({ value, onValueChange }: { value: boolean; onValueChange: (v: boolean) => void }) => {
   if (Platform.OS === 'web') {
@@ -253,8 +254,8 @@ export function UserProfileHeader({ onMenuPress }: { onMenuPress?: () => void })
         </Pressable>
 
         {/* B. PROFILE AVATAR CIRCLE */}
-        <Pressable 
-          onPress={() => setIsProfileOpen(true)}
+        <Pressable
+          onPress={() => router.push('/profile')}
           style={({ pressed }) => [
             styles.avatarTouchTarget,
             pressed && { opacity: 0.7 }

@@ -6,7 +6,8 @@ import { useTheme } from '@/hooks/use-theme';
 import { AppStorage, FeedPost, UserRole } from '@/services/storage';
 import { CompanyRepository } from '@/services/company-repository';
 import { router } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
     Alert,
     FlatList,
@@ -71,7 +72,7 @@ export default function FeedScreen() {
   // Core States
   const [posts, setPosts] = useState<FeedPost[]>([]);
   const [userRole, setUserRole] = useState<UserRole>('estudante');
-  const [selectedFilter, setSelectedFilter] = useState<'todos' | 'vaga' | 'noticia'>('todos');
+  const [selectedFilter, setSelectedFilter] = useState<'todos' | 'vaga' | 'noticia' | 'evento'>('todos');
   const [isPostModalVisible, setIsPostModalVisible] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
@@ -101,11 +102,7 @@ export default function FeedScreen() {
   const [projectDescription, setProjectDescription] = useState<string>('');
   const [estimatedBudget, setEstimatedBudget] = useState<string>('Abaixo de R$ 2.000');
 
-  useEffect(() => {
-    loadData();
-  }, [isPostModalVisible]);
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     setIsLoading(true);
     const [storedPosts, companyPosts, companies] = await Promise.all([
       AppStorage.getFeedPosts(),
@@ -132,12 +129,22 @@ export default function FeedScreen() {
     setPosts(merged);
     setUserRole(role);
     setIsLoading(false);
-  };
+  }, []);
+
+  useEffect(() => {
+    loadData();
+  }, [isPostModalVisible, loadData]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadData();
+    }, [loadData])
+  );
 
   const handleLike = async (postId: string) => {
     if (postId.startsWith('company-post:')) return;
-    const updated = await AppStorage.toggleLikePost(postId);
-    setPosts(updated);
+    await AppStorage.toggleLikePost(postId);
+    await loadData();
   };
 
   const handleCreatePost = async () => {
@@ -220,17 +227,17 @@ export default function FeedScreen() {
     setNotifications(prev => prev.map(notif => ({ ...notif, unread: false })));
   };
 
-  // Filter Posts (remove eventos do feed)
-  const visiblePosts = posts.filter(post => post.category !== 'evento');
   const filteredPosts = selectedFilter === 'todos'
-    ? visiblePosts
-    : visiblePosts.filter(post => post.category === selectedFilter);
+    ? posts
+    : posts.filter(post => post.category === selectedFilter);
 
   // Style tags based on category
   const getTagColors = (category: string) => {
     switch (category) {
       case 'vaga':
         return { bg: 'rgba(168, 85, 247, 0.15)', text: '#A855F7', border: 'rgba(168, 85, 247, 0.3)' }; // Purple
+      case 'evento':
+        return { bg: 'rgba(34, 197, 94, 0.15)', text: '#22C55E', border: 'rgba(34, 197, 94, 0.3)' };
       case 'noticia':
       default:
         return { bg: 'rgba(249, 115, 22, 0.15)', text: '#F97316', border: 'rgba(249, 115, 22, 0.3)' }; // Vibrant Orange
@@ -310,7 +317,7 @@ export default function FeedScreen() {
             {/* HORIZONTAL CATEGORY FILTER CHIPS */}
             <View style={styles.filterContainer}>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterScroll}>
-                {(['todos', 'vaga', 'noticia'] as const).map(filter => {
+                {(['todos', 'vaga', 'noticia', 'evento'] as const).map(filter => {
                   const isActive = selectedFilter === filter;
                   const textColor = isActive ? '#FFFFFF' : theme.textSecondary;
                   
@@ -337,7 +344,7 @@ export default function FeedScreen() {
                           { color: textColor }
                         ]}
                       >
-                        {filter === 'todos' ? 'Todos' : filter === 'vaga' ? 'Vagas' : 'Notícias'}
+                        {filter === 'todos' ? 'Todos' : filter === 'vaga' ? 'Vagas' : filter === 'evento' ? 'Eventos' : 'Notícias'}
                       </ThemedText>
                     </Pressable>
                   );
