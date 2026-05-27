@@ -141,7 +141,7 @@ const renderAvatarHelper = (avatar: string | undefined, currentRole: string, siz
   );
 };
 
-export function UserProfileHeader() {
+export function UserProfileHeader({ onMenuPress }: { onMenuPress?: () => void }) {
   const { session, logout } = useContext(AuthContext);
   const colorScheme = useColorScheme();
   const theme = useTheme();
@@ -213,7 +213,24 @@ export function UserProfileHeader() {
 
   return (
     <View style={styles.profileHeaderContainer}>
-      
+      <View style={styles.headerLeftActions}>
+        {!!onMenuPress && (
+          <Pressable
+            onPress={onMenuPress}
+            style={({ pressed }) => [
+              styles.menuOpenTouchTarget,
+              { backgroundColor: theme.backgroundElement, borderColor: theme.border },
+              pressed && { opacity: 0.7 },
+            ]}>
+            <Image
+              source={require('@/assets/images/menu-aberto.png')}
+              style={[styles.menuOpenImage, { tintColor: theme.text }]}
+              resizeMode="contain"
+            />
+          </Pressable>
+        )}
+      </View>
+
       <View style={styles.headerRightActions}>
         
         {/* A. NOTIFICATION BELL WITH BADGE */}
@@ -465,8 +482,8 @@ const styles = StyleSheet.create({
   profileHeaderContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'flex-end',
-    paddingHorizontal: 16,
+    justifyContent: 'space-between',
+    paddingHorizontal: 0,
     paddingVertical: 10,
     width: '100%',
     ...Platform.select({
@@ -481,6 +498,22 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
+  },
+  headerLeftActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  menuOpenTouchTarget: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    borderWidth: 1.5,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  menuOpenImage: {
+    width: 18,
+    height: 18,
   },
   notificationTouchTarget: {
     padding: 2,

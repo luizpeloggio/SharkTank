@@ -4,6 +4,7 @@ import { UserProfileHeader } from '@/components/user-profile-header';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { AppStorage, FeedPost, UserRole } from '@/services/storage';
+import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
     Alert,
@@ -69,15 +70,16 @@ export default function FeedScreen() {
   // Core States
   const [posts, setPosts] = useState<FeedPost[]>([]);
   const [userRole, setUserRole] = useState<UserRole>('estudante');
-  const [selectedFilter, setSelectedFilter] = useState<'todos' | 'vaga' | 'evento' | 'noticia'>('todos');
+  const [selectedFilter, setSelectedFilter] = useState<'todos' | 'vaga' | 'noticia'>('todos');
   const [isPostModalVisible, setIsPostModalVisible] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   // Form States for New Post
   const [newTitle, setNewTitle] = useState<string>('');
   const [newContent, setNewContent] = useState<string>('');
   const [newAuthor, setNewAuthor] = useState<string>('');
-  const [newCategory, setNewCategory] = useState<'vaga' | 'evento' | 'noticia'>('noticia');
+  const [newCategory, setNewCategory] = useState<'vaga' | 'noticia'>('noticia');
   const [newApplyUrl, setNewApplyUrl] = useState<string>('');
 
   // Interactive View Toggle (Mural Feed vs B2B Services Marketplace)
@@ -130,8 +132,7 @@ export default function FeedScreen() {
     const tagMap = {
       noticia: '#NOTÍCIA',
       vaga: '#VAGA',
-      evento: '#EVENTO',
-    };
+    } as const;
 
     const newPostData = {
       title: newTitle,
@@ -198,18 +199,17 @@ export default function FeedScreen() {
     setNotifications(prev => prev.map(notif => ({ ...notif, unread: false })));
   };
 
-  // Filter Posts
-  const filteredPosts = selectedFilter === 'todos' 
-    ? posts 
-    : posts.filter(post => post.category === selectedFilter);
+  // Filter Posts (remove eventos do feed)
+  const visiblePosts = posts.filter(post => post.category !== 'evento');
+  const filteredPosts = selectedFilter === 'todos'
+    ? visiblePosts
+    : visiblePosts.filter(post => post.category === selectedFilter);
 
   // Style tags based on category
   const getTagColors = (category: string) => {
     switch (category) {
       case 'vaga':
         return { bg: 'rgba(168, 85, 247, 0.15)', text: '#A855F7', border: 'rgba(168, 85, 247, 0.3)' }; // Purple
-      case 'evento':
-        return { bg: 'rgba(16, 185, 129, 0.15)', text: '#10B981', border: 'rgba(16, 185, 129, 0.3)' }; // Green
       case 'noticia':
       default:
         return { bg: 'rgba(249, 115, 22, 0.15)', text: '#F97316', border: 'rgba(249, 115, 22, 0.3)' }; // Vibrant Orange
@@ -219,7 +219,7 @@ export default function FeedScreen() {
   return (
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
-        <UserProfileHeader />
+        <UserProfileHeader onMenuPress={() => setIsMenuOpen(true)} />
         
         {/* HEADER SECTION */}
         <View style={styles.header}>
@@ -246,9 +246,9 @@ export default function FeedScreen() {
             onPress={() => setActiveView('feed')}
           >
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-              <Image source={require('@/assets/images/celular.png')} style={{ width: 28, height: 28, resizeMode: 'contain' }} />
+              <Image source={require('@/assets/images/cardapio.png')} style={{ width: 28, height: 28, resizeMode: 'contain' }} />
               <ThemedText type="smallBold" style={{ color: activeView === 'feed' ? '#FFF' : theme.text }}>
-                Mural de Notícias
+                Mural
               </ThemedText>
             </View>
           </Pressable>
@@ -264,9 +264,9 @@ export default function FeedScreen() {
             onPress={() => setActiveView('marketplace')}
           >
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-              <Image source={require('@/assets/images/cardapio.png')} style={{ width: 28, height: 28, resizeMode: 'contain' }} />
+              <Image source={require('@/assets/images/visitante.png')} style={{ width: 28, height: 28, resizeMode: 'contain' }} />
               <ThemedText type="smallBold" style={{ color: activeView === 'marketplace' ? '#FFF' : theme.text }}>
-                Serviços B2B
+                Empresas Jr
               </ThemedText>
             </View>
           </Pressable>
@@ -278,7 +278,7 @@ export default function FeedScreen() {
             {/* HORIZONTAL CATEGORY FILTER CHIPS */}
             <View style={styles.filterContainer}>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterScroll}>
-                {(['todos', 'vaga', 'evento', 'noticia'] as const).map(filter => {
+                {(['todos', 'vaga', 'noticia'] as const).map(filter => {
                   const isActive = selectedFilter === filter;
                   const textColor = isActive ? '#FFFFFF' : theme.textSecondary;
                   
@@ -298,12 +298,6 @@ export default function FeedScreen() {
                       ]}
                       onPress={() => setSelectedFilter(filter)}
                     >
-                      {filter === 'evento' && (
-                        <Image source={require('@/assets/images/calendario.png')} style={{ width: 26, height: 26, resizeMode: 'contain' }} />
-                      )}
-                      {filter === 'noticia' && (
-                        <Image source={require('@/assets/images/celular.png')} style={{ width: 26, height: 26, resizeMode: 'contain' }} />
-                      )}
                       <ThemedText 
                         type="smallBold" 
                         style={[
@@ -311,7 +305,7 @@ export default function FeedScreen() {
                           { color: textColor }
                         ]}
                       >
-                        {filter === 'todos' ? 'Todos' : filter === 'vaga' ? '💼 Vagas' : filter === 'evento' ? 'Eventos' : 'Notícias'}
+                        {filter === 'todos' ? 'Todos' : filter === 'vaga' ? 'Vagas' : 'Notícias'}
                       </ThemedText>
                     </Pressable>
                   );
@@ -370,11 +364,8 @@ export default function FeedScreen() {
                           styles.tagBadge, 
                           { backgroundColor: colors.bg, borderColor: colors.border, flexDirection: 'row', alignItems: 'center', gap: 4 }
                         ]}>
-                          {item.category === 'evento' && (
-                            <Image source={require('@/assets/images/calendario.png')} style={{ width: 22, height: 22, resizeMode: 'contain' }} />
-                          )}
                           {item.category === 'noticia' && (
-                            <Image source={require('@/assets/images/celular.png')} style={{ width: 22, height: 22, resizeMode: 'contain' }} />
+                            <Image source={require('@/assets/images/cardapio.png')} style={{ width: 22, height: 22, resizeMode: 'contain' }} />
                           )}
                           <ThemedText type="code" style={[styles.tagText, { color: colors.text }]}>
                             {item.tag}
@@ -408,7 +399,7 @@ export default function FeedScreen() {
                         {/* Apply Recruitment Link */}
                         {item.applyUrl && (
                           <Pressable 
-                            style={[styles.applyBtn, { borderColor: theme.primary, borderWidth: 1 }]}
+                            style={styles.applyBtn}
                             onPress={() => {
                               if (Platform.OS === 'web') {
                                 window.open(item.applyUrl, '_blank');
@@ -417,7 +408,7 @@ export default function FeedScreen() {
                               }
                             }}
                           >
-                            <ThemedText type="code" style={[styles.applyBtnText, { color: theme.primary }]}>
+                            <ThemedText type="code" style={styles.applyBtnText}>
                               Candidatar-se ↗
                             </ThemedText>
                           </Pressable>
@@ -538,7 +529,7 @@ export default function FeedScreen() {
                   Categoria *
                 </ThemedText>
                 <View style={styles.categorySelectRow}>
-                  {(['noticia', 'vaga', 'evento'] as const).map(cat => {
+                  {(['noticia', 'vaga'] as const).map(cat => {
                     const isSel = newCategory === cat;
                     const textColor = isSel ? theme.primary : theme.textSecondary;
                     
@@ -559,17 +550,14 @@ export default function FeedScreen() {
                         ]}
                         onPress={() => setNewCategory(cat)}
                       >
-                        {cat === 'evento' && (
-                          <Image source={require('@/assets/images/calendario.png')} style={{ width: 24, height: 24, resizeMode: 'contain' }} />
-                        )}
                         {cat === 'noticia' && (
-                          <Image source={require('@/assets/images/celular.png')} style={{ width: 24, height: 24, resizeMode: 'contain' }} />
+                          <Image source={require('@/assets/images/cardapio.png')} style={{ width: 24, height: 24, resizeMode: 'contain' }} />
                         )}
                         {cat === 'vaga' && (
                           <ThemedText type="code" style={{ color: textColor }}>💼 </ThemedText>
                         )}
                         <ThemedText type="code" style={[styles.catChoiceText, { color: textColor }]}>
-                          {cat === 'noticia' ? 'Notícia' : cat === 'vaga' ? 'Vaga' : 'Evento'}
+                          {cat === 'noticia' ? 'Notícia' : 'Vaga'}
                         </ThemedText>
                       </Pressable>
                     );
@@ -854,6 +842,41 @@ export default function FeedScreen() {
           </View>
         </Modal>
 
+        {/* ================= HAMBURGER MENU ================= */}
+        <Modal
+          animationType="fade"
+          transparent={true}
+          visible={isMenuOpen}
+          onRequestClose={() => setIsMenuOpen(false)}
+        >
+          <Pressable style={styles.menuOverlay} onPress={() => setIsMenuOpen(false)}>
+            <Pressable
+              style={[
+                styles.menuCard,
+                { backgroundColor: theme.backgroundElement, borderColor: theme.border, borderWidth: 1 },
+              ]}
+              onPress={(e) => e.stopPropagation()}
+            >
+              <ThemedText type="smallBold" style={{ color: theme.text, marginBottom: Spacing.two }}>
+                Menu
+              </ThemedText>
+
+              <Pressable style={[styles.menuItem, { borderBottomColor: theme.border }]} onPress={() => { setIsMenuOpen(false); router.push('/profile'); }}>
+                <ThemedText type="smallBold" style={{ color: theme.text }}>Perfil</ThemedText>
+              </Pressable>
+              <Pressable style={[styles.menuItem, { borderBottomColor: theme.border }]} onPress={() => { setIsMenuOpen(false); router.push('/guia'); }}>
+                <ThemedText type="smallBold" style={{ color: theme.text }}>Guia</ThemedText>
+              </Pressable>
+              <Pressable style={[styles.menuItem, { borderBottomColor: theme.border }]} onPress={() => { setIsMenuOpen(false); router.push('/vitrine'); }}>
+                <ThemedText type="smallBold" style={{ color: theme.text }}>Vitrine</ThemedText>
+              </Pressable>
+              <Pressable style={[styles.menuItem, { borderBottomColor: theme.border }]} onPress={() => { setIsMenuOpen(false); router.push('/sharktank'); }}>
+                <ThemedText type="smallBold" style={{ color: theme.text }}>Shark Tank</ThemedText>
+              </Pressable>
+            </Pressable>
+          </Pressable>
+        </Modal>
+
       </SafeAreaView>
     </ThemedView>
   );
@@ -876,6 +899,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: Spacing.two,
     marginTop: Spacing.one,
+  },
+  menuOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.35)',
+    justifyContent: 'flex-start',
+    alignItems: 'flex-start',
+    paddingTop: 90,
+    paddingLeft: Spacing.three,
+  },
+  menuCard: {
+    width: 220,
+    borderRadius: 16,
+    padding: Spacing.three,
+  },
+  menuItem: {
+    paddingVertical: Spacing.two,
+    borderBottomWidth: 1,
   },
   headerTitle: {
     fontSize: 28,
@@ -999,10 +1039,12 @@ const styles = StyleSheet.create({
     fontSize: 11,
   },
   applyBtn: {
-    backgroundColor: '#9333EA', // Purple color for vaga action
+    backgroundColor: '#A855F7',
     paddingHorizontal: Spacing.three,
     paddingVertical: Spacing.one + 2,
     borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#C084FC',
   },
   applyBtnText: {
     color: '#FFF',

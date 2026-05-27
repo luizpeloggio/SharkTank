@@ -10,7 +10,7 @@ import React from 'react';
 import { Image, Pressable, StyleSheet, View } from 'react-native';
 import { ThemedText } from './themed-text';
 
-import { Colors, MaxContentWidth, Spacing } from '@/constants/theme';
+import { Colors, Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useTheme } from '@/hooks/use-theme';
 
@@ -70,6 +70,7 @@ export function TabButton({
         styles.pressable,
         routeName === 'vitrine' && styles.leftCenterSpacing,
         routeName === 'sharktank' && styles.rightCenterSpacing,
+        isCenter && styles.centerPressable,
         pressed && styles.pressed,
         isCenter && styles.centerButtonWrap,
       ]}>
@@ -111,9 +112,18 @@ export function CustomTabList(props: TabListProps) {
   const colors = Colors[scheme === 'dark' ? 'dark' : 'light'];
 
   return (
-    <View {...props} style={styles.tabListContainer}>
+    <View
+      {...props}
+      style={[
+        styles.tabListContainer,
+        {
+          backgroundColor: colors.backgroundElement,
+          borderTopColor: colors.border,
+          borderTopWidth: 1,
+        },
+      ]}>
       <View style={[styles.notchCutout, { backgroundColor: colors.background }]} />
-      <View style={[styles.innerContainer, { borderColor: colors.border, borderWidth: 1, backgroundColor: colors.backgroundElement }]}>
+      <View style={styles.innerContainer}>
         {props.children}
       </View>
     </View>
@@ -124,8 +134,11 @@ const styles = StyleSheet.create({
   tabListContainer: {
     position: 'absolute',
     width: '100%',
-    paddingHorizontal: Spacing.three,
-    paddingBottom: Spacing.three,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    paddingHorizontal: 0,
+    paddingBottom: Spacing.two,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -142,13 +155,13 @@ const styles = StyleSheet.create({
   },
   innerContainer: {
     paddingVertical: Spacing.two,
-    paddingHorizontal: Spacing.two,
-    borderRadius: Spacing.four,
+    paddingHorizontal: Spacing.three,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     width: '100%',
-    maxWidth: MaxContentWidth,
   },
   pressed: {
     opacity: 0.78,
@@ -172,29 +185,33 @@ const styles = StyleSheet.create({
   centerButtonWrap: {
     position: 'absolute',
     left: '50%',
-    top: -30,
-    marginLeft: -34,
+    top: -24,
+    transform: [{ translateX: -28 }],
     zIndex: 5,
   },
+  centerPressable: {
+    width: 56,
+    minWidth: 56,
+  },
   centerButton: {
-    width: 68,
-    height: 68,
-    borderRadius: 34,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.25,
-    shadowRadius: 12,
-    elevation: 10,
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.18,
+    shadowRadius: 8,
+    elevation: 6,
   },
   tabIcon: {
     width: 22,
     height: 22,
   },
   centerIcon: {
-    width: 30,
-    height: 30,
+    width: 24,
+    height: 24,
   },
   leftCenterSpacing: {
     marginRight: 30,

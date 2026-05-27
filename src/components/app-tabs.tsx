@@ -54,9 +54,19 @@ function CustomTabList(props: React.ComponentProps<typeof TabList>) {
   const theme = useTheme();
 
   return (
-    <View {...props} style={[styles.tabListContainer, { paddingBottom: Math.max(insets.bottom, Spacing.two) }]}>
+    <View
+      {...props}
+      style={[
+        styles.tabListContainer,
+        {
+          paddingBottom: Math.max(insets.bottom, Spacing.two),
+          backgroundColor: theme.backgroundElement,
+          borderTopColor: theme.border,
+          borderTopWidth: 1,
+        },
+      ]}>
       <View style={[styles.notchCutout, { backgroundColor: theme.background }]} />
-      <View style={[styles.tabBar, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
+      <View style={styles.tabBar}>
         {props.children}
       </View>
     </View>
@@ -80,6 +90,7 @@ function TabButton({
         styles.pressable,
         routeName === 'vitrine' && styles.leftCenterSpacing,
         routeName === 'sharktank' && styles.rightCenterSpacing,
+        isCenter && styles.centerPressable,
         pressed && styles.pressed,
         isCenter && styles.centerButtonWrap,
       ]}>
@@ -115,16 +126,18 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    paddingHorizontal: Spacing.three,
+    width: '100%',
+    paddingHorizontal: 0,
   },
   tabBar: {
     minHeight: 72,
-    borderRadius: 24,
-    borderWidth: 1,
+    width: '100%',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: Spacing.two,
+    paddingHorizontal: Spacing.three,
     paddingTop: Spacing.two,
     paddingBottom: Spacing.two,
   },
@@ -161,30 +174,34 @@ const styles = StyleSheet.create({
   centerButtonWrap: {
     position: 'absolute',
     left: '50%',
-    top: -30,
-    marginLeft: -34,
+    top: -24,
+    transform: [{ translateX: -28 }],
     zIndex: 5,
   },
+  centerPressable: {
+    width: 56,
+    minWidth: 56,
+  },
   centerButton: {
-    width: 68,
-    height: 68,
-    borderRadius: 34,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 4,
+    borderWidth: 3,
     shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.25,
-    shadowRadius: 12,
-    elevation: 10,
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.18,
+    shadowRadius: 8,
+    elevation: 6,
   },
   tabIcon: {
     width: 22,
     height: 22,
   },
   centerIcon: {
-    width: 30,
-    height: 30,
+    width: 24,
+    height: 24,
   },
   label: {
     marginTop: 4,
