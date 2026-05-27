@@ -1,6 +1,7 @@
 import React, { useContext, useEffect, useMemo, useState } from 'react';
 import { Alert, FlatList, Image, Modal, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { ThemedView } from '@/components/themed-view';
 import { ThemedText } from '@/components/themed-text';
@@ -8,7 +9,7 @@ import { UserProfileHeader } from '@/components/user-profile-header';
 import { useTheme } from '@/hooks/use-theme';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
 import { useCompany } from '@/contexts/company-context';
-import { canEditCompanyProfile, canManageCompanyPosts } from '@/services/permissions';
+import { canManageCompanyPosts } from '@/services/permissions';
 import { AuthContext } from '@/contexts/auth-context';
 import { CompanyRepository, type CompanyPostCategory } from '@/services/company-repository';
 import { AppStorage } from '@/services/storage';
@@ -21,7 +22,6 @@ export default function CompanyProfileScreen() {
 
   const companyId = params.companyId;
   const isActiveCompany = activeCompanyId === companyId;
-  const canEdit = isActiveCompany && canEditCompanyProfile(membership);
   const canPost = isActiveCompany && canManageCompanyPosts({ membership, systemRole: session?.role ?? null });
 
   const [viewCompany, setViewCompany] = useState(company);
@@ -38,7 +38,7 @@ export default function CompanyProfileScreen() {
   const [isFollowing, setIsFollowing] = useState(false);
   const [followersCount] = useState(128);
 
-  const load = async () => {
+  const load = React.useCallback(async () => {
     const [targetCompany, m, p, users] = await Promise.all([
       CompanyRepository.getCompany(companyId),
       CompanyRepository.listMembers(companyId),
@@ -49,11 +49,17 @@ export default function CompanyProfileScreen() {
     setMembers(m);
     setCompanyPosts(p);
     setUserIndex(Object.fromEntries(users.map(u => [u.id, { name: u.name, username: u.username, avatar: u.avatar }])));
-  };
+  }, [companyId]);
 
   useEffect(() => {
     load();
-  }, [companyId]);
+  }, [load]);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      load();
+    }, [load])
+  );
 
   const createPost = async () => {
     if (!session) return;
@@ -139,10 +145,10 @@ export default function CompanyProfileScreen() {
   }, [viewCompany?.createdAt]);
 
   const companyMeta = useMemo(() => {
-    const area = viewCompany?.tags?.[0]?.replace('#', '') || 'Tecnologia';
-    const location = viewCompany?.tags?.[1]?.replace('#', '') || 'Mossoró, RN';
-    return `${area} · ${location}`;
-  }, [viewCompany?.tags]);
+    const area = viewCompany?.badges?.[0]?.replace('#', '') || 'Tecnologia';
+    const location = viewCompany?.location?.trim();
+    return [area, location].filter(Boolean).join(' · ');
+  }, [viewCompany?.badges, viewCompany?.location]);
 
   return (
     <ThemedView style={styles.container}>
@@ -216,9 +222,9 @@ export default function CompanyProfileScreen() {
                 CONQUISTAS
               </ThemedText>
             </View>
-            {!!viewCompany?.tags?.length && (
+            {!!viewCompany?.achievements?.length && (
               <View style={styles.tagsRow}>
-                {viewCompany.tags.map((t) => (
+                {viewCompany.achievements.map((t) => (
                 <View key={t} style={[styles.tag, { backgroundColor: theme.backgroundSelected, borderColor: theme.border }]}>
                   <ThemedText type="code" style={{ color: theme.primary, fontSize: 10, fontWeight: 'bold' }}>
                     {t}
@@ -227,7 +233,7 @@ export default function CompanyProfileScreen() {
               ))}
             </View>
           )}
-            {!viewCompany?.tags?.length && (
+            {!viewCompany?.achievements?.length && (
               <View style={styles.tagsRow}>
                 <View style={[styles.tag, { backgroundColor: theme.background, borderColor: theme.border }]}>
                   <ThemedText type="code" style={{ color: theme.textSecondary, fontSize: 10 }}>

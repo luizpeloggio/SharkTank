@@ -26,6 +26,9 @@ export const CompanyService = {
       name: input.name.trim(),
       description: input.description?.trim() ? input.description.trim() : undefined,
       avatar: input.logo,
+      badges: [],
+      location: undefined,
+      achievements: [],
       tags: [],
       createdAt: now,
       updatedAt: now,
@@ -44,7 +47,10 @@ export const CompanyService = {
     return { company, membership };
   },
 
-  async updateCompany(companyId: string, patch: Partial<Pick<Company, 'name' | 'description' | 'avatar' | 'tags'>>): Promise<Company | null> {
+  async updateCompany(
+    companyId: string,
+    patch: Partial<Pick<Company, 'name' | 'description' | 'avatar' | 'badges' | 'location'>>
+  ): Promise<Company | null> {
     const existing = await CompanyRepository.getCompany(companyId);
     if (!existing) return null;
     const updated: Company = {
@@ -52,7 +58,9 @@ export const CompanyService = {
       name: patch.name?.trim() ? patch.name.trim() : existing.name,
       description: patch.description !== undefined ? (patch.description.trim() ? patch.description.trim() : undefined) : existing.description,
       avatar: patch.avatar !== undefined ? patch.avatar : existing.avatar,
-      tags: patch.tags !== undefined ? patch.tags : existing.tags,
+      badges: patch.badges !== undefined ? patch.badges : existing.badges,
+      location: patch.location !== undefined ? (patch.location.trim() ? patch.location.trim() : undefined) : existing.location,
+      tags: patch.badges !== undefined ? patch.badges : existing.tags,
       updatedAt: Date.now(),
     };
     await CompanyRepository.upsertCompany(updated);

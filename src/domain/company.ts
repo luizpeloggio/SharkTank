@@ -6,6 +6,19 @@ export interface Company {
   name: string;
   description?: string;
   avatar?: string;
+  /**
+   * Institucional: badges/tags livres editáveis pela empresa.
+   * (Não confundir com conquistas do sistema.)
+   */
+  badges?: string[];
+  /** Institucional: localização editável pela empresa (ex: "Mossoró, RN"). */
+  location?: string;
+  /** Sistema: conquistas geradas automaticamente (não editáveis pela empresa). */
+  achievements?: string[];
+  /**
+   * Campo legado (não usar em novas telas).
+   * Mantido apenas para compatibilidade com dados já persistidos.
+   */
   tags?: string[];
   createdAt: number;
   updatedAt: number;

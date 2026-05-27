@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Alert, Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
@@ -23,11 +23,21 @@ export default function CompanyManageScreen() {
 
   const [name, setName] = useState(company?.name ?? '');
   const [description, setDescription] = useState(company?.description ?? '');
-  const [tagsText, setTagsText] = useState((company?.tags ?? []).join(', '));
+  const [location, setLocation] = useState(company?.location ?? '');
+  const [badgesText, setBadgesText] = useState((company?.badges ?? company?.tags ?? []).join(', '));
   const [avatar, setAvatar] = useState(company?.avatar ?? '');
   const [isSaving, setIsSaving] = useState(false);
 
   const title = useMemo(() => company?.name ?? 'Empresa', [company?.name]);
+
+  useEffect(() => {
+    if (!company || company.id !== companyId) return;
+    setName(company.name ?? '');
+    setDescription(company.description ?? '');
+    setLocation(company.location ?? '');
+    setBadgesText((company.badges ?? company.tags ?? []).join(', '));
+    setAvatar(company.avatar ?? '');
+  }, [company, companyId]);
 
   const save = async () => {
     if (!canEdit) return;
@@ -39,12 +49,12 @@ export default function CompanyManageScreen() {
     }
     setIsSaving(true);
     try {
-      const tags = tagsText
+      const badges = badgesText
         .split(',')
         .map(t => t.trim())
         .filter(Boolean)
         .slice(0, 8);
-      await CompanyService.updateCompany(companyId, { name, description, tags, avatar: avatar || undefined });
+      await CompanyService.updateCompany(companyId, { name, description, badges, location, avatar: avatar || undefined });
       await refresh();
       if (Platform.OS === 'web') alert('Empresa atualizada.');
       else Alert.alert('Sucesso', 'Empresa atualizada.');
@@ -156,11 +166,22 @@ export default function CompanyManageScreen() {
           />
 
           <ThemedText type="smallBold" style={{ color: theme.textSecondary, marginTop: Spacing.three }}>
+            Localização
+          </ThemedText>
+          <TextInput
+            value={location}
+            onChangeText={setLocation}
+            placeholder="Cidade, UF"
+            placeholderTextColor={theme.textSecondary}
+            style={[styles.input, { backgroundColor: theme.background, borderColor: theme.border, color: theme.text }]}
+          />
+
+          <ThemedText type="smallBold" style={{ color: theme.textSecondary, marginTop: Spacing.three }}>
             Badges / tags (separadas por vírgula)
           </ThemedText>
           <TextInput
-            value={tagsText}
-            onChangeText={setTagsText}
+            value={badgesText}
+            onChangeText={setBadgesText}
             placeholder="Ex: #EJ, #UERN, #Tech"
             placeholderTextColor={theme.textSecondary}
             style={[styles.input, { backgroundColor: theme.background, borderColor: theme.border, color: theme.text }]}

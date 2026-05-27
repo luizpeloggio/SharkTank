@@ -32,14 +32,33 @@ export const CompanyRepository = {
 
   async getCompany(companyId: string): Promise<Company | null> {
     const companies = await readJson<Record<string, Company>>(KEYS.COMPANIES, {});
-    return companies[companyId] ?? null;
+    const company = companies[companyId] ?? null;
+    if (!company) return null;
+
+    // Compatibilidade: versões antigas usavam `tags` pra área/localização/conquistas.
+    // Agora separamos em `badges` (institucional), `location` (institucional) e `achievements` (sistema).
+    const hadBadges = Array.isArray(company.badges);
+    if (!hadBadges && Array.isArray(company.tags)) {
+      company.badges = company.tags;
+    }
+    if (!hadBadges && !company.location && Array.isArray(company.tags) && typeof company.tags[1] === 'string') {
+      company.location = company.tags[1].replace('#', '').trim() || undefined;
+    }
+    return company;
   },
 
   async upsertCompany(company: Company): Promise<Company> {
     const companies = await readJson<Record<string, Company>>(KEYS.COMPANIES, {});
-    companies[company.id] = company;
+    // Normaliza e mantém compatibilidade: se ainda tiver `tags`, preenche `badges` quando faltar.
+    const normalized: Company = {
+      ...company,
+      badges: company.badges ?? company.tags ?? [],
+      achievements: company.achievements ?? [],
+      location: company.location?.trim() ? company.location.trim() : undefined,
+    };
+    companies[company.id] = normalized;
     await writeJson(KEYS.COMPANIES, companies);
-    return company;
+    return normalized;
   },
 
   async listMemberships(): Promise<CompanyMembership[]> {
