@@ -1,22 +1,28 @@
 import {
-    TabList,
-    TabListProps,
-    Tabs,
-    TabSlot,
-    TabTrigger,
-    TabTriggerSlotProps,
+  TabList,
+  TabListProps,
+  Tabs,
+  TabSlot,
+  TabTrigger,
+  TabTriggerSlotProps,
 } from 'expo-router/ui';
-import { SymbolView } from 'expo-symbols';
 import React from 'react';
 import { Image, Pressable, StyleSheet, View } from 'react-native';
-
-import { ExternalLink } from './external-link';
 import { ThemedText } from './themed-text';
-import { ThemedView } from './themed-view';
 
 import { Colors, MaxContentWidth, Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useTheme } from '@/hooks/use-theme';
+
+type RouteName = 'index' | 'guia' | 'vitrine' | 'sharktank' | 'profile';
+
+const ICON_MAP: Record<RouteName, any> = {
+  index: require('@/assets/images/tabIcons/cardapio.png'),
+  guia: require('@/assets/images/tabIcons/caminho-do-segmento.png'),
+  vitrine: require('@/assets/images/tabIcons/foguete-inclinado.png'),
+  sharktank: require('@/assets/images/tubaraozao.png'),
+  profile: require('@/assets/images/tabIcons/profile.png'),
+};
 
 export default function AppTabs() {
   return (
@@ -25,19 +31,21 @@ export default function AppTabs() {
       <TabList asChild>
         <CustomTabList>
           <TabTrigger name="index" href="/" asChild>
-            <TabButton>Principal</TabButton>
-          </TabTrigger>
-          <TabTrigger name="guia" href="/guia" asChild>
-            <TabButton>Guia</TabButton>
+            <TabButton routeName="index">Principal</TabButton>
           </TabTrigger>
           <TabTrigger name="vitrine" href="/vitrine" asChild>
-            <TabButton>Vitrine</TabButton>
+            <TabButton routeName="vitrine">Vitrine</TabButton>
           </TabTrigger>
           <TabTrigger name="sharktank" href="/sharktank" asChild>
-            <TabButton>Shark Tank</TabButton>
+            <TabButton routeName="sharktank">Shark Tank</TabButton>
           </TabTrigger>
           <TabTrigger name="profile" href="/profile" asChild>
-            <TabButton>Perfil</TabButton>
+            <TabButton routeName="profile">Perfil</TabButton>
+          </TabTrigger>
+          <TabTrigger name="guia" href="/guia" asChild>
+            <TabButton routeName="guia" isCenter>
+              Guia
+            </TabButton>
           </TabTrigger>
         </CustomTabList>
       </TabList>
@@ -45,47 +53,55 @@ export default function AppTabs() {
   );
 }
 
-export function TabButton({ children, isFocused, ...props }: TabTriggerSlotProps) {
+export function TabButton({
+  children,
+  isFocused,
+  routeName,
+  isCenter = false,
+  ...props
+}: TabTriggerSlotProps & { routeName: RouteName; isCenter?: boolean }) {
   const theme = useTheme();
-
-  // Map route names to icon images
-  const iconMap: { [key: string]: any } = {
-    index: require('@/assets/images/tabIcons/cardapio.png'),
-    guia: require('@/assets/images/tabIcons/caminho-do-segmento.png'),
-    vitrine: require('@/assets/images/tabIcons/foguete-inclinado.png'),
-    sharktank: require('@/assets/images/tubaraozao.png'),
-    profile: require('@/assets/images/tabIcons/profile.png'),
-  };
-
-  // Extract route name from props if available
-  const routeName = (props as any)['data-name'] || (children as string)?.toLowerCase();
-  const iconSource = iconMap[routeName];
+  const iconSource = ICON_MAP[routeName];
 
   return (
-    <Pressable {...props} style={({ pressed }) => pressed && styles.pressed}>
+    <Pressable
+      {...props}
+      style={({ pressed }) => [
+        styles.pressable,
+        routeName === 'vitrine' && styles.leftCenterSpacing,
+        routeName === 'sharktank' && styles.rightCenterSpacing,
+        pressed && styles.pressed,
+        isCenter && styles.centerButtonWrap,
+      ]}>
       <View
         style={[
-          styles.tabButtonView,
+          isCenter ? styles.centerButton : styles.tabButtonView,
           {
-            backgroundColor: isFocused ? theme.backgroundSelected : theme.backgroundElement,
-            borderColor: isFocused ? theme.primary : 'transparent',
-            borderWidth: 1,
+            backgroundColor: isCenter
+              ? theme.primary
+              : isFocused
+                ? theme.backgroundSelected
+                : theme.backgroundElement,
+            borderColor: isCenter ? theme.backgroundElement : isFocused ? theme.primary : 'transparent',
+            borderWidth: isCenter ? 4 : 1,
           },
         ]}>
         {iconSource && (
           <Image
             source={iconSource}
             style={[
-              styles.tabIcon,
-              { tintColor: isFocused ? theme.primary : theme.textSecondary },
+              isCenter ? styles.centerIcon : styles.tabIcon,
+              { tintColor: isCenter ? '#FFFFFF' : isFocused ? theme.primary : theme.textSecondary },
             ]}
             resizeMode="contain"
           />
         )}
-        <ThemedText type="smallBold" style={{ color: isFocused ? theme.primary : theme.textSecondary }}>
+      </View>
+      {!isCenter && (
+        <ThemedText type="smallBold" style={[styles.tabLabel, { color: isFocused ? theme.primary : theme.textSecondary }]}>
           {children}
         </ThemedText>
-      </View>
+      )}
     </Pressable>
   );
 }
@@ -96,24 +112,10 @@ export function CustomTabList(props: TabListProps) {
 
   return (
     <View {...props} style={styles.tabListContainer}>
-      <ThemedView type="backgroundElement" style={[styles.innerContainer, { borderColor: colors.border, borderWidth: 1 }]}>
-        <ThemedText type="smallBold" style={[styles.brandText, { color: colors.primary }]}>
-          💥 ImpactoEJ
-        </ThemedText>
-
+      <View style={[styles.notchCutout, { backgroundColor: colors.background }]} />
+      <View style={[styles.innerContainer, { borderColor: colors.border, borderWidth: 1, backgroundColor: colors.backgroundElement }]}>
         {props.children}
-
-        <ExternalLink href="https://docs.expo.dev" asChild>
-          <Pressable style={styles.externalPressable}>
-            <ThemedText type="link" style={{ color: colors.textSecondary }}>Docs</ThemedText>
-            <SymbolView
-              tintColor={colors.textSecondary}
-              name="arrow.up.right.square"
-              size={12}
-            />
-          </Pressable>
-        </ExternalLink>
-      </ThemedView>
+      </View>
     </View>
   );
 }
@@ -122,44 +124,82 @@ const styles = StyleSheet.create({
   tabListContainer: {
     position: 'absolute',
     width: '100%',
-    padding: Spacing.three,
+    paddingHorizontal: Spacing.three,
+    paddingBottom: Spacing.three,
     justifyContent: 'center',
     alignItems: 'center',
-    flexDirection: 'row',
+  },
+  notchCutout: {
+    position: 'absolute',
+    top: 0,
+    left: '50%',
+    marginLeft: -42,
+    width: 84,
+    height: 36,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+    zIndex: 2,
   },
   innerContainer: {
     paddingVertical: Spacing.two,
-    paddingHorizontal: Spacing.five,
-    borderRadius: Spacing.five,
+    paddingHorizontal: Spacing.two,
+    borderRadius: Spacing.four,
     flexDirection: 'row',
     alignItems: 'center',
-    flexGrow: 1,
-    gap: Spacing.two,
+    justifyContent: 'space-between',
+    width: '100%',
     maxWidth: MaxContentWidth,
   },
-  brandText: {
-    marginRight: 'auto',
-  },
   pressed: {
-    opacity: 0.7,
+    opacity: 0.78,
+  },
+  pressable: {
+    minWidth: 64,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   tabButtonView: {
-    paddingVertical: Spacing.one,
-    paddingHorizontal: Spacing.three,
-    borderRadius: Spacing.three,
-    flexDirection: 'row',
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     alignItems: 'center',
-    gap: Spacing.one,
+    justifyContent: 'center',
+  },
+  tabLabel: {
+    marginTop: 4,
+    fontSize: 11,
+  },
+  centerButtonWrap: {
+    position: 'absolute',
+    left: '50%',
+    top: -30,
+    marginLeft: -34,
+    zIndex: 5,
+  },
+  centerButton: {
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
+    elevation: 10,
   },
   tabIcon: {
-    width: 20,
-    height: 20,
+    width: 22,
+    height: 22,
   },
-  externalPressable: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: Spacing.one,
-    marginLeft: Spacing.three,
+  centerIcon: {
+    width: 30,
+    height: 30,
+  },
+  leftCenterSpacing: {
+    marginRight: 30,
+  },
+  rightCenterSpacing: {
+    marginLeft: 30,
   },
 });
