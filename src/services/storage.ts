@@ -20,6 +20,35 @@ export interface TrailStep {
   checklistItems: string[];
 }
 
+export type AchievementTargetType = 'user' | 'company';
+export type AchievementScope = AchievementTargetType | 'both';
+export type AchievementCategory = 'trail' | 'content' | 'networking' | 'growth' | 'event' | 'community';
+
+export interface AchievementDefinition {
+  id: string;
+  name: string;
+  icon: string;
+  description: string;
+  category: AchievementCategory;
+  scope: AchievementScope;
+  color: string;
+  backgroundColor: string;
+  stepId?: number;
+}
+
+interface AchievementRecord {
+  targetType: AchievementTargetType;
+  targetId: string;
+  achievementId: string;
+  earnedAt: number;
+}
+
+export interface EarnedAchievement extends AchievementDefinition {
+  targetType: AchievementTargetType;
+  targetId: string;
+  earnedAt?: number;
+}
+
 export interface FeedPost {
   id: string;
   title: string;
@@ -151,6 +180,124 @@ export const INITIAL_TRAIL_STEPS: TrailStep[] = [
   }
 ];
 
+export const ACHIEVEMENT_CATALOG: AchievementDefinition[] = [
+  {
+    id: 'user-trail-step-1',
+    stepId: 1,
+    name: 'Equipe em Movimento',
+    icon: '🤝',
+    description: 'Concluiu a ideação e formou a base da sua EJ.',
+    category: 'trail',
+    scope: 'user',
+    color: '#2563EB',
+    backgroundColor: 'rgba(37, 99, 235, 0.14)',
+  },
+  {
+    id: 'user-trail-step-2',
+    stepId: 2,
+    name: 'Guardião do Estatuto',
+    icon: '📘',
+    description: 'Avançou na estrutura jurídica e nas regras internas.',
+    category: 'trail',
+    scope: 'user',
+    color: '#7C3AED',
+    backgroundColor: 'rgba(124, 58, 237, 0.14)',
+  },
+  {
+    id: 'user-trail-step-3',
+    stepId: 3,
+    name: 'Assembleia Fundadora',
+    icon: '🏛️',
+    description: 'Formalizou decisões e liderança da empresa júnior.',
+    category: 'trail',
+    scope: 'user',
+    color: '#0891B2',
+    backgroundColor: 'rgba(8, 145, 178, 0.14)',
+  },
+  {
+    id: 'user-trail-step-4',
+    stepId: 4,
+    name: 'CNPJ no Radar',
+    icon: '🧾',
+    description: 'Dominou a etapa de registro e regularização.',
+    category: 'trail',
+    scope: 'user',
+    color: '#EA580C',
+    backgroundColor: 'rgba(234, 88, 12, 0.14)',
+  },
+  {
+    id: 'user-trail-step-5',
+    stepId: 5,
+    name: 'Completou primeira trilha',
+    icon: '🏅',
+    description: 'Completou a trilha e chegou ao ecossistema oficial.',
+    category: 'trail',
+    scope: 'user',
+    color: '#16A34A',
+    backgroundColor: 'rgba(22, 163, 74, 0.14)',
+  },
+  {
+    id: 'user-first-post',
+    name: 'Primeiro post',
+    icon: '✍️',
+    description: 'Publicou sua primeira contribuição no ecossistema.',
+    category: 'content',
+    scope: 'user',
+    color: '#DB2777',
+    backgroundColor: 'rgba(219, 39, 119, 0.14)',
+  },
+  {
+    id: 'user-networking',
+    name: 'Networking',
+    icon: '🌐',
+    description: 'Interagiu com pessoas e oportunidades do MEJ.',
+    category: 'networking',
+    scope: 'user',
+    color: '#0D9488',
+    backgroundColor: 'rgba(13, 148, 136, 0.14)',
+  },
+  {
+    id: 'company-10-members',
+    name: '10 membros',
+    icon: '👥',
+    description: 'A empresa alcançou uma equipe com 10 membros.',
+    category: 'growth',
+    scope: 'company',
+    color: '#2563EB',
+    backgroundColor: 'rgba(37, 99, 235, 0.14)',
+  },
+  {
+    id: 'company-event-held',
+    name: 'Evento realizado',
+    icon: '🎤',
+    description: 'A empresa registrou uma ação ou evento no ecossistema.',
+    category: 'event',
+    scope: 'company',
+    color: '#9333EA',
+    backgroundColor: 'rgba(147, 51, 234, 0.14)',
+  },
+  {
+    id: 'company-100-followers',
+    name: '100 seguidores',
+    icon: '📣',
+    description: 'A empresa conquistou uma audiência inicial relevante.',
+    category: 'community',
+    scope: 'company',
+    color: '#EA580C',
+    backgroundColor: 'rgba(234, 88, 12, 0.14)',
+  },
+  {
+    id: 'ecosystem-official',
+    name: 'Ecossistema UERN',
+    icon: '⭐',
+    description: 'Reconhecimento geral de presença no ecossistema.',
+    category: 'community',
+    scope: 'both',
+    color: '#16A34A',
+    backgroundColor: 'rgba(22, 163, 74, 0.14)',
+  },
+];
+
 export const INITIAL_FEED_POSTS: FeedPost[] = [
   {
     id: 'post-1',
@@ -270,6 +417,7 @@ const KEYS = {
   CHECKED_SUBITEMS: '@uern_impactoej_checked_subitems',
   USERS: '@uern_impactoej_users',
   PASSWORD_RESET_REQUEST: '@uern_impactoej_password_reset_request',
+  ACHIEVEMENTS: '@uern_impactoej_achievements',
 };
 
 export const AppStorage = {
@@ -530,6 +678,117 @@ export const AppStorage = {
     }
   },
 
+  // --- ACHIEVEMENTS ---
+  async getAchievementRecords(): Promise<AchievementRecord[]> {
+    try {
+      const data = await AsyncStorage.getItem(KEYS.ACHIEVEMENTS);
+      if (!data) return [];
+      const parsed = JSON.parse(data);
+      if (!Array.isArray(parsed)) return [];
+      return parsed.filter((item: any) => (
+        item?.targetType &&
+        item?.targetId &&
+        item?.achievementId &&
+        typeof item?.earnedAt === 'number'
+      ));
+    } catch {
+      return [];
+    }
+  },
+
+  async saveAchievementRecords(records: AchievementRecord[]): Promise<void> {
+    await AsyncStorage.setItem(KEYS.ACHIEVEMENTS, JSON.stringify(records));
+  },
+
+  getAchievementDefinitions(targetType?: AchievementTargetType): AchievementDefinition[] {
+    if (!targetType) return ACHIEVEMENT_CATALOG;
+    return ACHIEVEMENT_CATALOG.filter(item => item.scope === targetType || item.scope === 'both');
+  },
+
+  async getAchievementsForTarget(targetType: AchievementTargetType, targetId: string): Promise<EarnedAchievement[]> {
+    try {
+      const records = await this.getAchievementRecords();
+      return records
+        .filter(record => record.targetType === targetType && record.targetId === targetId)
+        .map(record => {
+          const definition = ACHIEVEMENT_CATALOG.find(item => item.id === record.achievementId);
+          if (!definition) return null;
+          return {
+            ...definition,
+            targetType,
+            targetId,
+            earnedAt: record.earnedAt,
+          } as EarnedAchievement;
+        })
+        .filter((item): item is EarnedAchievement => Boolean(item));
+    } catch {
+      return [];
+    }
+  },
+
+  async awardAchievement(
+    targetType: AchievementTargetType,
+    targetId: string,
+    achievementId: string
+  ): Promise<EarnedAchievement | null> {
+    try {
+      const definition = ACHIEVEMENT_CATALOG.find(item => item.id === achievementId);
+      if (!definition) return null;
+      if (definition.scope !== 'both' && definition.scope !== targetType) return null;
+
+      const current = await this.getAchievementRecords();
+      const existing = current.find(item => (
+        item.targetType === targetType &&
+        item.targetId === targetId &&
+        item.achievementId === achievementId
+      ));
+      if (existing) {
+        return { ...definition, targetType, targetId, earnedAt: existing.earnedAt };
+      }
+
+      const record: AchievementRecord = {
+        targetType,
+        targetId,
+        achievementId,
+        earnedAt: Date.now(),
+      };
+      await this.saveAchievementRecords([...current, record]);
+      return { ...definition, targetType, targetId, earnedAt: record.earnedAt };
+    } catch (e) {
+      console.error('Error awarding achievement', e);
+      return null;
+    }
+  },
+
+  async awardTrailStepAchievement(userId: string, stepId: number): Promise<EarnedAchievement | null> {
+    const definition = ACHIEVEMENT_CATALOG.find(item => item.scope === 'user' && item.stepId === stepId);
+    if (!definition) return null;
+    return this.awardAchievement('user', userId, definition.id);
+  },
+
+  async syncUserAchievements(userId: string, completedStepIds: number[]): Promise<EarnedAchievement[]> {
+    for (const stepId of completedStepIds) {
+      await this.awardTrailStepAchievement(userId, stepId);
+    }
+    return this.getAchievementsForTarget('user', userId);
+  },
+
+  async syncCompanyAchievements(
+    companyId: string,
+    stats: { membersCount: number; eventCount: number; followersCount: number }
+  ): Promise<EarnedAchievement[]> {
+    if (stats.membersCount >= 10) {
+      await this.awardAchievement('company', companyId, 'company-10-members');
+    }
+    if (stats.eventCount >= 1) {
+      await this.awardAchievement('company', companyId, 'company-event-held');
+    }
+    if (stats.followersCount >= 100) {
+      await this.awardAchievement('company', companyId, 'company-100-followers');
+    }
+    return this.getAchievementsForTarget('company', companyId);
+  },
+
   // --- FEED POSTS ---
   async getFeedPosts(): Promise<FeedPost[]> {
     try {
@@ -567,6 +826,10 @@ export const AppStorage = {
       };
       const updated = [newPost, ...current];
       await AsyncStorage.setItem(KEYS.FEED_POSTS, JSON.stringify(updated));
+      const session = await this.getSession();
+      if (session?.id) {
+        await this.awardAchievement('user', session.id, 'user-first-post');
+      }
       return updated;
     } catch (e) {
       console.error('Error adding feed post', e);
@@ -653,6 +916,7 @@ export const AppStorage = {
       await AsyncStorage.removeItem(KEYS.SESSION);
       await AsyncStorage.removeItem(KEYS.CHECKED_SUBITEMS);
       await AsyncStorage.removeItem(KEYS.USERS);
+      await AsyncStorage.removeItem(KEYS.ACHIEVEMENTS);
     } catch (e) {
       console.error('Error resetting AppStorage', e);
     }

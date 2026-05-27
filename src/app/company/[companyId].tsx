@@ -13,6 +13,7 @@ import { canManageCompanyPosts } from '@/services/permissions';
 import { AuthContext } from '@/contexts/auth-context';
 import { CompanyRepository, type CompanyPostCategory } from '@/services/company-repository';
 import { AppStorage } from '@/services/storage';
+import type { EarnedAchievement } from '@/services/storage';
 
 export default function CompanyProfileScreen() {
   const theme = useTheme();
@@ -30,6 +31,7 @@ export default function CompanyProfileScreen() {
   const [members, setMembers] = useState<any[]>([]);
   const [userIndex, setUserIndex] = useState<Record<string, { name?: string; username?: string; avatar?: string }>>({});
   const [posts, setCompanyPosts] = useState<any[]>([]);
+  const [companyAchievements, setCompanyAchievements] = useState<EarnedAchievement[]>([]);
   const [isPostModalOpen, setIsPostModalOpen] = useState(false);
   const [editingPostId, setEditingPostId] = useState<string | null>(null);
   const [newTitle, setNewTitle] = useState('');
@@ -48,8 +50,13 @@ export default function CompanyProfileScreen() {
     setViewCompany(targetCompany);
     setMembers(m);
     setCompanyPosts(p);
+    setCompanyAchievements(await AppStorage.syncCompanyAchievements(companyId, {
+      membersCount: m.length,
+      eventCount: p.filter(post => post.category === 'evento').length,
+      followersCount,
+    }));
     setUserIndex(Object.fromEntries(users.map(u => [u.id, { name: u.name, username: u.username, avatar: u.avatar }])));
-  }, [companyId]);
+  }, [companyId, followersCount]);
 
   useEffect(() => {
     load();
@@ -222,24 +229,42 @@ export default function CompanyProfileScreen() {
                 CONQUISTAS
               </ThemedText>
             </View>
-            {!!viewCompany?.achievements?.length && (
-              <View style={styles.tagsRow}>
-                {viewCompany.achievements.map((t) => (
-                <View key={t} style={[styles.tag, { backgroundColor: theme.backgroundSelected, borderColor: theme.border }]}>
-                  <ThemedText type="code" style={{ color: theme.primary, fontSize: 10, fontWeight: 'bold' }}>
-                    {t}
-                  </ThemedText>
-                </View>
-              ))}
-            </View>
-          )}
-            {!viewCompany?.achievements?.length && (
-              <View style={styles.tagsRow}>
-                <View style={[styles.tag, { backgroundColor: theme.background, borderColor: theme.border }]}>
-                  <ThemedText type="code" style={{ color: theme.textSecondary, fontSize: 10 }}>
-                    Sem conquistas cadastradas
-                  </ThemedText>
-                </View>
+            {companyAchievements.length > 0 ? (
+              <View style={styles.achievementsGrid}>
+                {companyAchievements.map((badge) => (
+                  <View
+                    key={badge.id}
+                    style={[
+                      styles.achievementCard,
+                      {
+                        backgroundColor: badge.backgroundColor,
+                        borderColor: badge.color,
+                      },
+                    ]}
+                  >
+                    <View style={[styles.achievementIconWrap, { backgroundColor: badge.color }]}>
+                      <ThemedText style={styles.achievementIcon}>{badge.icon}</ThemedText>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <ThemedText type="smallBold" style={{ color: theme.text, fontSize: 13 }}>
+                        {badge.name}
+                      </ThemedText>
+                      <ThemedText type="small" style={{ color: theme.textSecondary, fontSize: 11, lineHeight: 15 }}>
+                        {badge.description}
+                      </ThemedText>
+                      <ThemedText type="code" style={{ color: badge.color, fontSize: 9, fontWeight: 'bold', marginTop: 4 }}>
+                        {badge.category.toUpperCase()} · #{badge.id.toUpperCase()}
+                      </ThemedText>
+                    </View>
+                  </View>
+                ))}
+              </View>
+            ) : (
+              <View style={[styles.emptyAchievements, { backgroundColor: theme.background, borderColor: theme.border }]}>
+                <ThemedText style={{ fontSize: 22 }}>🏁</ThemedText>
+                <ThemedText type="code" style={{ color: theme.textSecondary, fontSize: 10 }}>
+                  Sem conquistas de empresa ainda
+                </ThemedText>
               </View>
             )}
 
@@ -544,6 +569,36 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 10,
     borderWidth: 1,
+  },
+  achievementsGrid: {
+    gap: Spacing.two,
+    marginBottom: Spacing.three,
+  },
+  achievementCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
+    borderWidth: 1,
+    borderRadius: 14,
+    padding: Spacing.two + 2,
+  },
+  achievementIconWrap: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  achievementIcon: {
+    fontSize: 19,
+  },
+  emptyAchievements: {
+    alignItems: 'center',
+    gap: Spacing.one,
+    borderWidth: 1,
+    borderRadius: 14,
+    padding: Spacing.three,
+    marginBottom: Spacing.three,
   },
   sectionTitleRow: {
     flexDirection: 'row',

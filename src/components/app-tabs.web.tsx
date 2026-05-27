@@ -19,8 +19,8 @@ type RouteName = 'index' | 'guia' | 'vitrine' | 'events' | 'sharktank';
 const ICON_MAP: Record<RouteName, any> = {
   index: require('@/assets/images/tabIcons/cardapio.png'),
   guia: require('@/assets/images/tabIcons/caminho-do-segmento.png'),
-  vitrine: require('@/assets/images/tabIcons/foguete-inclinado.png'),
-  events: require('@/assets/images/calendario.png'),
+  vitrine: require('@/assets/images/trofeu-1.png'),
+  events: require('@/assets/images/tabIcons/foguete-inclinado.png'),
   sharktank: require('@/assets/images/tubaraozao.png'),
 };
 
@@ -34,7 +34,7 @@ export default function AppTabs() {
             <TabButton routeName="index">Principal</TabButton>
           </TabTrigger>
           <TabTrigger name="vitrine" href="/vitrine" asChild>
-            <TabButton routeName="vitrine">Vitrine</TabButton>
+            <TabButton routeName="vitrine">Conquistas</TabButton>
           </TabTrigger>
           <TabTrigger name="events" href="/events" asChild>
             <TabButton routeName="events">Eventos</TabButton>
@@ -92,6 +92,7 @@ export function TabButton({
             source={iconSource}
             style={[
               isCenter ? styles.centerIcon : styles.tabIcon,
+              routeName === 'vitrine' && styles.trophyIcon,
               { tintColor: isCenter ? '#FFFFFF' : isFocused ? theme.primary : theme.textSecondary },
             ]}
             resizeMode="contain"
@@ -208,6 +209,10 @@ const styles = StyleSheet.create({
   tabIcon: {
     width: 22,
     height: 22,
+  },
+  trophyIcon: {
+    width: 32,
+    height: 32,
   },
   centerIcon: {
     width: 24,

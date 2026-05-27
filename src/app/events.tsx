@@ -42,7 +42,7 @@ const EVENT_REELS: EventReel[] = [
     tag: 'Ao vivo em breve',
     accent: '#22C55E',
     videoUri: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
-    poster: require('@/assets/images/alto-falante.png'),
+    poster: require('@/assets/images/foguete-1.png'),
     attendees: '512',
     saves: '38',
   },
@@ -132,6 +132,15 @@ export default function EventsScreen() {
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.headerLayer}>
           <UserProfileHeader />
+          <View style={styles.brandRow}>
+            <View style={styles.brandIconFrame}>
+              <Image source={require('@/assets/images/foguete-inclinado.png')} style={styles.brandIcon} resizeMode="contain" />
+            </View>
+            <View>
+              <Text style={styles.brandKicker}>EVENTOS UERN</Text>
+              <Text style={styles.brandTitle}>Decole na agenda</Text>
+            </View>
+          </View>
         </View>
 
         <FlatList
@@ -214,6 +223,39 @@ const styles = StyleSheet.create({
   headerLayer: {
     paddingHorizontal: Spacing.three,
     zIndex: 5,
+  },
+  brandRow: {
+    position: 'absolute',
+    left: Spacing.three,
+    top: 66,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    zIndex: 6,
+  },
+  brandIconFrame: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: 'rgba(255,255,255,0.14)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.24)',
+  },
+  brandIcon: {
+    width: 28,
+    height: 28,
+  },
+  brandKicker: {
+    color: 'rgba(255,255,255,0.78)',
+    fontSize: 10,
+    fontWeight: '900',
+  },
+  brandTitle: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '900',
   },
   reelShell: {
     alignItems: 'center',

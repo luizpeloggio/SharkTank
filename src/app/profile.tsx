@@ -17,6 +17,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { useLocalSearchParams } from 'expo-router';
 import { AppStorage } from '@/services/storage';
+import type { EarnedAchievement } from '@/services/storage';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing, MaxContentWidth } from '@/constants/theme';
@@ -110,6 +111,7 @@ export default function ProfileScreen() {
   const [votesCastCount, setVotesCastCount] = useState<number>(0);
   const [completedStepsDisplay, setCompletedStepsDisplay] = useState<number>(0);
   const [votesCastDisplay, setVotesCastDisplay] = useState<number>(0);
+  const [achievements, setAchievements] = useState<EarnedAchievement[]>([]);
   const [isAvatarModalVisible, setIsAvatarModalVisible] = useState(false);
   const [selectedAvatar, setSelectedAvatar] = useState(session?.avatar || '');
 
@@ -338,12 +340,16 @@ export default function ProfileScreen() {
   const loadData = async () => {
     const progress = await AppStorage.getTrailProgress();
     const votes = await AppStorage.getUserVotes();
+    const syncedAchievements = session?.id
+      ? await AppStorage.syncUserAchievements(session.id, progress)
+      : [];
     
     const targetSteps = progress.length;
     const targetVotes = votes.length;
     
     setCompletedStepsCount(targetSteps);
     setVotesCastCount(targetVotes);
+    setAchievements(syncedAchievements);
     
     // Animate display counters
     animateCount(targetSteps, setCompletedStepsDisplay);
@@ -447,6 +453,66 @@ export default function ProfileScreen() {
             </View>
           </View>
 
+
+          <View style={styles.sectionContainer}>
+            <View style={styles.sectionHeaderRow}>
+              <View>
+                <ThemedText type="smallBold" style={[styles.sectionTitle, { color: theme.text }]}>
+                  Conquistas
+                </ThemedText>
+                <ThemedText type="small" style={[styles.sectionSub, { color: theme.textSecondary }]}>
+                  Badges de progresso, conteúdo e networking do usuário.
+                </ThemedText>
+              </View>
+              <View style={[styles.achievementCounter, { backgroundColor: theme.backgroundSelected, borderColor: theme.border }]}>
+                <ThemedText type="code" style={{ color: theme.primary, fontWeight: 'bold' }}>
+                  {achievements.length}
+                </ThemedText>
+              </View>
+            </View>
+
+            {achievements.length === 0 ? (
+              <View style={[styles.emptyAchievements, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
+                <ThemedText style={styles.emptyAchievementIcon}>🏁</ThemedText>
+                <ThemedText type="smallBold" style={{ color: theme.text }}>
+                  Nenhuma conquista ainda
+                </ThemedText>
+                <ThemedText type="small" style={{ color: theme.textSecondary, textAlign: 'center' }}>
+                  Complete etapas, publique e interaja para ganhar suas primeiras badges.
+                </ThemedText>
+              </View>
+            ) : (
+              <View style={styles.achievementsGrid}>
+                {achievements.map((badge) => (
+                  <View
+                    key={badge.id}
+                    style={[
+                      styles.achievementCard,
+                      {
+                        backgroundColor: badge.backgroundColor,
+                        borderColor: badge.color,
+                      },
+                    ]}
+                  >
+                    <View style={[styles.achievementIconWrap, { backgroundColor: badge.color }]}>
+                      <ThemedText style={styles.achievementIcon}>{badge.icon}</ThemedText>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <ThemedText type="smallBold" style={[styles.achievementName, { color: theme.text }]}>
+                        {badge.name}
+                      </ThemedText>
+                      <ThemedText type="small" style={[styles.achievementDesc, { color: theme.textSecondary }]}>
+                        {badge.description}
+                      </ThemedText>
+                      <ThemedText type="code" style={[styles.achievementId, { color: badge.color }]}>
+                        {badge.category.toUpperCase()} · #{badge.id.toUpperCase()}
+                      </ThemedText>
+                    </View>
+                  </View>
+                ))}
+              </View>
+            )}
+          </View>
 
 
           {isEditSectionOpen && (
@@ -979,6 +1045,63 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 16,
     marginBottom: Spacing.three,
+  },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: Spacing.three,
+    marginBottom: Spacing.two,
+  },
+  achievementCounter: {
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: Spacing.two,
+    paddingVertical: Spacing.one,
+  },
+  achievementsGrid: {
+    gap: Spacing.two,
+  },
+  achievementCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.three,
+    borderWidth: 1,
+    borderRadius: 14,
+    padding: Spacing.three,
+  },
+  achievementIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  achievementIcon: {
+    fontSize: 22,
+  },
+  achievementName: {
+    fontSize: 14,
+  },
+  achievementDesc: {
+    fontSize: 12,
+    lineHeight: 16,
+    marginTop: 2,
+  },
+  achievementId: {
+    fontSize: 9,
+    fontWeight: 'bold',
+    marginTop: 6,
+  },
+  emptyAchievements: {
+    alignItems: 'center',
+    borderWidth: 1,
+    borderRadius: 14,
+    gap: Spacing.one,
+    padding: Spacing.four,
+  },
+  emptyAchievementIcon: {
+    fontSize: 28,
   },
   
   // ROLE PICKER CARD GRID

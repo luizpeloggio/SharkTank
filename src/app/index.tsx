@@ -285,8 +285,16 @@ export default function FeedScreen() {
             onPress={() => setActiveView('feed')}
           >
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-              <Image source={require('@/assets/images/cardapio.png')} style={{ width: 28, height: 28, resizeMode: 'contain' }} />
-              <ThemedText type="smallBold" style={{ color: activeView === 'feed' ? '#FFF' : theme.text }}>
+              <Image
+                source={require('@/assets/images/cardapio.png')}
+                style={{
+                  width: 28,
+                  height: 28,
+                  resizeMode: 'contain',
+                  tintColor: activeView === 'feed' ? '#FFF' : '#000',
+                }}
+              />
+              <ThemedText type="smallBold" style={{ color: activeView === 'feed' ? '#FFF' : '#000' }}>
                 Mural
               </ThemedText>
             </View>
@@ -303,8 +311,16 @@ export default function FeedScreen() {
             onPress={() => setActiveView('marketplace')}
           >
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-              <Image source={require('@/assets/images/visitante.png')} style={{ width: 28, height: 28, resizeMode: 'contain' }} />
-              <ThemedText type="smallBold" style={{ color: activeView === 'marketplace' ? '#FFF' : theme.text }}>
+              <Image
+                source={require('@/assets/images/visitante.png')}
+                style={{
+                  width: 28,
+                  height: 28,
+                  resizeMode: 'contain',
+                  tintColor: activeView === 'marketplace' ? '#FFF' : '#000',
+                }}
+              />
+              <ThemedText type="smallBold" style={{ color: activeView === 'marketplace' ? '#FFF' : '#000' }}>
                 Empresas Jr
               </ThemedText>
             </View>

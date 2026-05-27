@@ -2,13 +2,14 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { UserProfileHeader } from '@/components/user-profile-header';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
+import { AuthContext } from '@/contexts/auth-context';
 import { useTheme } from '@/hooks/use-theme';
 import {
     AppStorage,
     INITIAL_TRAIL_STEPS,
     TrailStep
 } from '@/services/storage';
-import React, { useEffect, useState } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import {
     Alert,
     FlatList,
@@ -130,6 +131,7 @@ function ProgressCircle({ progress, size, strokeWidth, children }: ProgressCircl
 
 export default function GuiaScreen() {
   const theme = useTheme();
+  const { session } = useContext(AuthContext);
   
   // Storage States
   const [completedSteps, setCompletedSteps] = useState<number[]>([]);
@@ -236,6 +238,9 @@ export default function GuiaScreen() {
 
     const progress = await AppStorage.toggleTrailStep(selectedStep.id);
     const isNowCompleted = progress.includes(selectedStep.id);
+    const earnedBadge = isNowCompleted && session?.id
+      ? await AppStorage.awardTrailStepAchievement(session.id, selectedStep.id)
+      : null;
     
     // Synchronize subitems in storage if completed
     if (isNowCompleted) {
@@ -254,10 +259,14 @@ export default function GuiaScreen() {
       ? `Parabéns! Você completou a etapa "${selectedStep.title}"!`
       : `Etapa "${selectedStep.title}" marcada como pendente.`;
 
+    const finalMessage = isNowCompleted && earnedBadge
+      ? `${message}\n\nNova conquista: ${earnedBadge.icon} ${earnedBadge.name}`
+      : message;
+
     if (Platform.OS === 'web') {
-      alert(message);
+      alert(finalMessage);
     } else {
-      Alert.alert(isNowCompleted ? '💥 Sucesso!' : 'Status Atualizado', message);
+      Alert.alert(isNowCompleted ? 'Conquista liberada!' : 'Status Atualizado', finalMessage);
     }
   };
 
@@ -276,7 +285,10 @@ export default function GuiaScreen() {
     return checkedCount / total;
   };
 
-  const handleContactMentor = (name: string) => {
+  const handleContactMentor = async (name: string) => {
+    if (session?.id) {
+      await AppStorage.awardAchievement('user', session.id, 'user-networking');
+    }
     const msg = `Mensagem enviada com sucesso para o mentor ${name}! Ele responderá em até 24h no seu email acadêmico.`;
     if (Platform.OS === 'web') {
       alert(msg);

@@ -653,6 +653,11 @@ export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
       return;
     }
 
+    if (selectedRole === 'admin') {
+      setErrorMessage('Perfis administrativos não podem ser criados pela tela de cadastro.');
+      return;
+    }
+
     if (!isStrengthValid(username)) {
       setErrorMessage('O Nome de UsuÃ¡rio deve conter letras maiÃºsculas, minÃºsculas, nÃºmeros e caracteres especiais.');
       return;
@@ -1184,25 +1189,6 @@ export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
                     LÃ­der
                   </Text>
                   <Text style={[styles.roleSub, { color: theme.textSecondary }]}>Divulgar</Text>
-                </Pressable>
-
-                <Pressable
-                  style={[
-                    styles.roleItem,
-                    { backgroundColor: theme.background, borderColor: theme.border },
-                    selectedRole === 'admin' && { borderColor: theme.primary, backgroundColor: theme.backgroundSelected },
-                  ]}
-                  onPress={() => setSelectedRole('admin')}>
-                  <Text style={styles.roleEmoji}>âš¡</Text>
-                  <Text
-                    style={[
-                      styles.roleText,
-                      { color: theme.textSecondary },
-                      selectedRole === 'admin' && { color: theme.primary },
-                    ]}>
-                    Admin
-                  </Text>
-                  <Text style={[styles.roleSub, { color: theme.textSecondary }]}>Gerenciar</Text>
                 </Pressable>
               </View>
             </View>

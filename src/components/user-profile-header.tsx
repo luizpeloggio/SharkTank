@@ -223,7 +223,7 @@ export function UserProfileHeader({ onMenuPress }: { onMenuPress?: () => void })
             else drawer.open();
           }}
           style={({ pressed }) => [
-            styles.menuOpenTouchTarget,
+            styles.headerCircleButton,
             { backgroundColor: theme.backgroundElement, borderColor: theme.border },
             pressed && { opacity: 0.7 },
           ]}>
@@ -241,11 +241,12 @@ export function UserProfileHeader({ onMenuPress }: { onMenuPress?: () => void })
         <Pressable 
           onPress={() => setIsNotificationsOpen(true)}
           style={({ pressed }) => [
-            styles.notificationTouchTarget,
+            styles.headerCircleButton,
+            { backgroundColor: theme.backgroundElement, borderColor: theme.border },
             pressed && { opacity: 0.7 }
           ]}
         >
-          <View style={[styles.bellContainer, { borderColor: theme.border }]}>
+          <View style={styles.bellContainer}>
             <Text style={{ fontSize: 18 }}>🔔</Text>
             {hasUnread && (
               <View style={styles.notificationBadgeDot} />
@@ -257,11 +258,12 @@ export function UserProfileHeader({ onMenuPress }: { onMenuPress?: () => void })
         <Pressable
           onPress={() => router.push('/profile')}
           style={({ pressed }) => [
-            styles.avatarTouchTarget,
+            styles.headerCircleButton,
+            { backgroundColor: theme.backgroundElement, borderColor: theme.border },
             pressed && { opacity: 0.7 }
           ]}
         >
-          <View style={[styles.avatarFrame, { borderColor: theme.primary }]}>
+          <View style={styles.avatarFrame}>
             {renderAvatarHelper(session.avatar, currentRole, 34)}
           </View>
         </Pressable>
@@ -507,11 +509,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
-  menuOpenTouchTarget: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+  headerCircleButton: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     borderWidth: 1.5,
+    padding: 3,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -519,18 +522,12 @@ const styles = StyleSheet.create({
     width: 18,
     height: 18,
   },
-  notificationTouchTarget: {
-    padding: 2,
-    borderRadius: 22,
-  },
   bellContainer: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    borderWidth: 1.5,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.02)',
     position: 'relative',
   },
   notificationBadgeDot: {
@@ -542,19 +539,13 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     backgroundColor: '#FF453A',
   },
-  avatarTouchTarget: {
-    padding: 2,
-    borderRadius: 22,
-  },
   avatarFrame: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    borderWidth: 1.5,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     justifyContent: 'center',
     alignItems: 'center',
     overflow: 'hidden',
-    backgroundColor: 'rgba(255,255,255,0.03)',
   },
   headerAvatarImage: {
     width: 34,
