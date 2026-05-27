@@ -1,39 +1,52 @@
-import React, { useState, useRef, useEffect } from 'react';
+﻿import { Spacing } from '@/constants/theme';
+import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useTheme } from '@/hooks/use-theme';
+import { AppStorage, UserRole, UserSession } from '@/services/storage';
+import * as Google from 'expo-auth-session/providers/google';
+import Constants from 'expo-constants';
+import * as Crypto from 'expo-crypto';
+import * as ImagePicker from 'expo-image-picker';
+import * as WebBrowser from 'expo-web-browser';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  StyleSheet,
-  View,
-  Text,
-  TextInput,
-  Pressable,
-  ScrollView,
   ActivityIndicator,
-  Platform,
+  Animated,
   Dimensions,
   Image,
-  Animated,
-  Alert,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View
 } from 'react-native';
-import * as ImagePicker from 'expo-image-picker';
-import { AppStorage, UserRole, UserSession } from '@/services/storage';
-import { Colors, Spacing } from '@/constants/theme';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { useTheme } from '@/hooks/use-theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+// Google Sign-In nativo — importado de forma lazy para não crashar no Expo Go
+let GoogleSignin: typeof import('@react-native-google-signin/google-signin').GoogleSignin | null = null;
+let isErrorWithCode: typeof import('@react-native-google-signin/google-signin').isErrorWithCode | null = null;
+let statusCodes: typeof import('@react-native-google-signin/google-signin').statusCodes | null = null;
+try {
+  const gsModule = require('@react-native-google-signin/google-signin');
+  GoogleSignin = gsModule.GoogleSignin;
+  isErrorWithCode = gsModule.isErrorWithCode;
+  statusCodes = gsModule.statusCodes;
+} catch {
+  // Módulo nativo não disponível (ex: Expo Go) — botão Google ficará desabilitado no mobile
+}
 
 const { width } = Dimensions.get('window');
 
-const SOCIAL_ACCOUNTS = {
-  Google: [
-    { email: 'luiz.peloggio@gmail.com', name: 'Luiz Peloggio', role: 'estudante', avatar: '🎓' },
-    { email: 'lider.impacto@gmail.com', name: 'Impacto Líder', role: 'lider', avatar: '💼' },
-    { email: 'admin.uern@gmail.com', name: 'UERN Admin', role: 'admin', avatar: '⚡' },
-  ],
-  Apple: [
-    { email: 'luiz.dev@icloud.com', name: 'Luiz Peloggio', role: 'estudante', avatar: '🎓' },
-    { email: 'impacto.lider@icloud.com', name: 'Impacto Líder', role: 'lider', avatar: '💼' },
-    { email: 'uern.admin@icloud.com', name: 'UERN Admin', role: 'admin', avatar: '⚡' },
-  ],
+WebBrowser.maybeCompleteAuthSession();
+const extra = (Constants.expoConfig?.extra ?? {}) as Record<string, string | undefined>;
+const GOOGLE_WEB_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID ?? extra.googleWebClientId;
+const GOOGLE_ANDROID_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID ?? extra.googleAndroidClientId;
+const GOOGLE_IOS_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID ?? extra.googleIosClientId;
+const RESEND_API_KEY = process.env.EXPO_PUBLIC_RESEND_API_KEY ?? (extra.resendApiKey as string | undefined);
+
+const generatePasswordResetCode = async () => {
+  const bytes = await Crypto.getRandomBytesAsync(4);
+  const value = new DataView(bytes.buffer).getUint32(0) % 1000000;
+  return value.toString().padStart(6, '0');
 };
 
 const RadarStyleInjector = () => {
@@ -193,9 +206,9 @@ function StrengthIndicator({ text }: { text: string }) {
   const theme = useTheme();
   const status = getValidationStatus(text);
   const rules = [
-    { label: 'Letra maiúscula (A-Z)', met: status.hasUpperCase },
-    { label: 'Letra minúscula (a-z)', met: status.hasLowerCase },
-    { label: 'Número (0-9)', met: status.hasNumber },
+    { label: 'Letra maiÃºscula (A-Z)', met: status.hasUpperCase },
+    { label: 'Letra minÃºscula (a-z)', met: status.hasLowerCase },
+    { label: 'NÃºmero (0-9)', met: status.hasNumber },
     { label: 'Caractere especial (ex: @, #, $, %)', met: status.hasSpecialChar },
   ];
 
@@ -204,7 +217,7 @@ function StrengthIndicator({ text }: { text: string }) {
       {rules.map((rule, index) => (
         <View key={index} style={styles.strengthRow}>
           <Text style={[styles.strengthDot, rule.met ? styles.strengthDotMet : [styles.strengthDotUnmet, { color: theme.textSecondary }]]}>
-            {rule.met ? '✓' : '○'}
+            {rule.met ? 'âœ“' : 'â—‹'}
           </Text>
           <Text style={[styles.strengthText, rule.met ? styles.strengthTextMet : [styles.strengthTextUnmet, { color: theme.textSecondary }]]}>
             {rule.label}
@@ -232,6 +245,16 @@ export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
   const [selectedRole, setSelectedRole] = useState<UserRole>('estudante');
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
+  const [isForgotPasswordOpen, setIsForgotPasswordOpen] = useState(false);
+  const [resetEmail, setResetEmail] = useState('');
+  const [resetCode, setResetCode] = useState('');
+  const [resetPassword, setResetPassword] = useState('');
+  const [resetPasswordConfirm, setResetPasswordConfirm] = useState('');
+  const [isResetCodeSent, setIsResetCodeSent] = useState(false);
+  const [isResettingPassword, setIsResettingPassword] = useState(false);
+  const [resetErrorMessage, setResetErrorMessage] = useState('');
+  const [resetSuccessMessage, setResetSuccessMessage] = useState('');
   const [focusedField, setFocusedField] = useState<string | null>(null);
 
   // Shark eating animation states
@@ -241,6 +264,17 @@ export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
   // Tab switch animation states
   const toggleAnim = useRef(new Animated.Value(0)).current;
   const [tabContainerWidth, setTabContainerWidth] = useState(0);
+
+  useEffect(() => {
+    if (Platform.OS === 'web') return;
+    if (!GoogleSignin) return; // módulo nativo não disponível (Expo Go)
+
+    GoogleSignin.configure({
+      webClientId: GOOGLE_WEB_CLIENT_ID,
+      iosClientId: GOOGLE_IOS_CLIENT_ID,
+      scopes: ['profile', 'email'],
+    });
+  }, []);
 
   useEffect(() => {
     Animated.timing(toggleAnim, {
@@ -277,17 +311,18 @@ export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
   }, [isSharkEating, isRegistering]);
 
   const handleActionButtonPress = () => {
+    setSuccessMessage('');
     if (isRegistering) {
       if (!email || !password || !name || !username) {
         setErrorMessage('Por favor, preencha todos os campos do cadastro.');
         return;
       }
       if (!isStrengthValid(username)) {
-        setErrorMessage('O Nome de Usuário deve conter letras maiúsculas, minúsculas, números e caracteres especiais.');
+        setErrorMessage('O Nome de UsuÃ¡rio deve conter letras maiÃºsculas, minÃºsculas, nÃºmeros e caracteres especiais.');
         return;
       }
       if (!isStrengthValid(password)) {
-        setErrorMessage('A Senha deve conter letras maiúsculas, minúsculas, números e caracteres especiais.');
+        setErrorMessage('A Senha deve conter letras maiÃºsculas, minÃºsculas, nÃºmeros e caracteres especiais.');
         return;
       }
     } else {
@@ -296,7 +331,7 @@ export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
         return;
       }
       if (password.length < 6) {
-        setErrorMessage('A senha deve conter no mínimo 6 caracteres.');
+        setErrorMessage('A senha deve conter no mÃ­nimo 6 caracteres.');
         return;
       }
     }
@@ -304,6 +339,167 @@ export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
     setErrorMessage('');
     setIsSharkEating(true);
     setSharkEatenCount(0);
+  };
+
+  const openForgotPassword = () => {
+    setResetEmail(email.trim());
+    setResetCode('');
+    setResetPassword('');
+    setResetPasswordConfirm('');
+    setIsResetCodeSent(false);
+    setResetErrorMessage('');
+    setResetSuccessMessage('');
+    setIsForgotPasswordOpen(true);
+  };
+
+  const closeForgotPassword = () => {
+    setIsForgotPasswordOpen(false);
+    setResetCode('');
+    setResetPassword('');
+    setResetPasswordConfirm('');
+    setIsResetCodeSent(false);
+    setIsResettingPassword(false);
+    setResetErrorMessage('');
+    setResetSuccessMessage('');
+  };
+
+  const handleSendPasswordResetEmail = async () => {
+    const normalizedEmail = resetEmail.toLowerCase().trim();
+
+    if (!normalizedEmail) {
+      setResetErrorMessage('Informe o e-mail cadastrado.');
+      return;
+    }
+
+    if (!RESEND_API_KEY) {
+      setResetErrorMessage('Configure EXPO_PUBLIC_RESEND_API_KEY no arquivo .env para enviar e-mails de recuperação.');
+      return;
+    }
+
+    setIsResettingPassword(true);
+    setResetErrorMessage('');
+    setResetSuccessMessage('');
+
+    try {
+      const foundUser = await AppStorage.findUserByEmail(normalizedEmail);
+
+      if (!foundUser) {
+        setResetErrorMessage('Conta não encontrada. Faça o cadastro primeiro.');
+        return;
+      }
+
+      if (foundUser.provider !== 'email') {
+        setResetErrorMessage('Esta conta usa login social. Entre com Google ou Apple.');
+        return;
+      }
+
+      const code = await generatePasswordResetCode();
+      await AppStorage.createPasswordResetRequest(normalizedEmail, code);
+
+      const response = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${RESEND_API_KEY}`,
+        },
+        body: JSON.stringify({
+          from: 'ImpactoEJ <onboarding@resend.dev>',
+          to: normalizedEmail,
+          subject: 'Seu código de recuperação de senha — ImpactoEJ',
+          html: `
+            <div style="font-family: sans-serif; max-width: 480px; margin: auto; padding: 32px; background: #f9f9f9; border-radius: 12px;">
+              <div style="text-align: center; margin-bottom: 24px;">
+                <h2 style="color: #353C7C; margin: 0;">ImpactoEJ</h2>
+                <p style="color: #666; margin-top: 4px;">Redefinição de senha</p>
+              </div>
+              <p style="color: #333;">Seu código de recuperação é:</p>
+              <div style="text-align: center; font-size: 40px; font-weight: bold; letter-spacing: 14px; color: #353C7C; background: #eef0ff; border-radius: 8px; padding: 20px; margin: 24px 0;">
+                ${code}
+              </div>
+              <p style="color: #888; font-size: 13px; text-align: center;">Este código expira em 15 minutos.<br/>Se você não solicitou isso, ignore este e-mail.</p>
+            </div>
+          `,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        await AppStorage.clearPasswordResetRequest();
+        setResetErrorMessage(
+          errorData?.message
+            ? `Erro ao enviar e-mail: ${errorData.message}`
+            : 'Não foi possível enviar o e-mail de recuperação. Verifique a chave do Resend.'
+        );
+        return;
+      }
+
+      setResetEmail(normalizedEmail);
+      setIsResetCodeSent(true);
+      setResetSuccessMessage(`Enviamos um código de recuperação para ${normalizedEmail}.`);
+    } catch {
+      await AppStorage.clearPasswordResetRequest();
+      setResetErrorMessage('Erro ao enviar e-mail de recuperação. Verifique sua conexão e tente novamente.');
+    } finally {
+      setIsResettingPassword(false);
+    }
+  };
+
+  const handlePasswordReset = async () => {
+    const normalizedEmail = resetEmail.toLowerCase().trim();
+
+    if (!normalizedEmail || !resetCode || !resetPassword || !resetPasswordConfirm) {
+      setResetErrorMessage('Preencha o código recebido e a nova senha.');
+      return;
+    }
+
+    const codeResult = await AppStorage.verifyPasswordResetCode(normalizedEmail, resetCode);
+    if (!codeResult.ok) {
+      const messages = {
+        not_requested: 'Peça um novo código de recuperação antes de redefinir a senha.',
+        expired: 'O código expirou. Peça um novo e-mail de recuperação.',
+        invalid: 'Código inválido. Confira o e-mail recebido.',
+        too_many_attempts: 'Muitas tentativas inválidas. Peça um novo código.',
+      };
+      setResetErrorMessage(messages[codeResult.reason]);
+      return;
+    }
+
+    if (!isStrengthValid(resetPassword)) {
+      setResetErrorMessage('A nova senha deve conter letras maiúsculas, minúsculas, números e caracteres especiais.');
+      return;
+    }
+
+    if (resetPassword !== resetPasswordConfirm) {
+      setResetErrorMessage('A confirmação da senha não confere.');
+      return;
+    }
+
+    setIsResettingPassword(true);
+    setResetErrorMessage('');
+    setResetSuccessMessage('');
+
+    try {
+      const result = await AppStorage.updateEmailUserPassword(normalizedEmail, resetPassword);
+
+      if (!result.ok) {
+        setResetErrorMessage(
+          result.reason === 'social_account'
+            ? 'Esta conta usa login social. Entre com Google ou Apple.'
+            : 'Conta não encontrada. Faça o cadastro primeiro.'
+        );
+        return;
+      }
+
+      setEmail(normalizedEmail);
+      setPassword('');
+      await AppStorage.clearPasswordResetRequest();
+      closeForgotPassword();
+      setSuccessMessage('Senha redefinida. Entre usando sua nova senha.');
+    } catch {
+      setResetErrorMessage('Erro ao redefinir senha. Tente novamente.');
+    } finally {
+      setIsResettingPassword(false);
+    }
   };
 
   const renderAnimatedButtonText = () => {
@@ -315,7 +511,7 @@ export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
           if (index < sharkEatenCount - 1) {
             return (
               <Text key={index} style={[styles.actionButtonText, { fontSize: 16 }]}>
-                🫧
+                ðŸ«§
               </Text>
             );
           }
@@ -343,7 +539,7 @@ export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
     try {
       const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!permissionResult.granted) {
-        alert('É necessário conceder permissão de acesso à galeria para enviar uma foto.');
+        alert('Ã‰ necessÃ¡rio conceder permissÃ£o de acesso Ã  galeria para enviar uma foto.');
         return;
       }
 
@@ -401,42 +597,43 @@ export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
     }
 
     if (password.length < 6) {
-      setErrorMessage('A senha deve conter no mínimo 6 caracteres.');
+      setErrorMessage('A senha deve conter no mÃ­nimo 6 caracteres.');
       return;
     }
 
     setIsLoading(true);
     setErrorMessage('');
+    setSuccessMessage('');
 
-    // Simulate network delay
     setTimeout(async () => {
       try {
-        let role: UserRole = 'estudante';
-        let resolvedName = 'Visitante';
-
-        // Auto-assign roles based on testing email or fallback
         const lowerEmail = email.toLowerCase().trim();
-        if (lowerEmail.includes('admin')) {
-          role = 'admin';
-          resolvedName = 'Admin UERN';
-        } else if (lowerEmail.includes('lider')) {
-          role = 'lider';
-          resolvedName = 'Líder Computação EJ';
-        } else if (lowerEmail.includes('estudante')) {
-          role = 'estudante';
-          resolvedName = 'Lucas Silva';
-        } else {
-          // If custom email, default to student or whatever is set
-          role = 'estudante';
-          resolvedName = email.split('@')[0];
+        const foundUser = await AppStorage.findUserByEmail(lowerEmail);
+
+        if (!foundUser) {
+          setIsLoading(false);
+          setErrorMessage('Conta não encontrada. Faça o cadastro primeiro.');
+          return;
+        }
+
+        if (foundUser.provider !== 'email') {
+          setIsLoading(false);
+          setErrorMessage(`Esta conta foi criada com ${foundUser.provider === 'google' ? 'Google' : 'Apple'}. Use login social.`);
+          return;
+        }
+
+        if (!foundUser.password || foundUser.password !== password) {
+          setIsLoading(false);
+          setErrorMessage('Senha incorreta.');
+          return;
         }
 
         const session: UserSession = {
           email: lowerEmail,
-          name: resolvedName,
-          username: lowerEmail.split('@')[0] + '123!',
-          role: role,
-          avatar: role === 'admin' ? '👩‍💻' : role === 'lider' ? '⚡' : '🎓',
+          name: foundUser.name,
+          username: foundUser.username,
+          role: foundUser.role,
+          avatar: foundUser.avatar,
         };
 
         await AppStorage.setSession(session);
@@ -456,23 +653,39 @@ export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
     }
 
     if (!isStrengthValid(username)) {
-      setErrorMessage('O Nome de Usuário deve conter letras maiúsculas, minúsculas, números e caracteres especiais.');
+      setErrorMessage('O Nome de UsuÃ¡rio deve conter letras maiÃºsculas, minÃºsculas, nÃºmeros e caracteres especiais.');
       return;
     }
 
     if (!isStrengthValid(password)) {
-      setErrorMessage('A Senha deve conter letras maiúsculas, minúsculas, números e caracteres especiais.');
+      setErrorMessage('A Senha deve conter letras maiÃºsculas, minÃºsculas, nÃºmeros e caracteres especiais.');
       return;
     }
 
     setIsLoading(true);
     setErrorMessage('');
+    setSuccessMessage('');
 
-    // Simulate network delay
     setTimeout(async () => {
       try {
+        const normalizedEmail = email.toLowerCase().trim();
+        const registerResult = await AppStorage.registerEmailUser({
+          email: normalizedEmail,
+          password,
+          name: name.trim(),
+          username: username.trim(),
+          role: selectedRole,
+          avatar: wantsAvatar ? avatar : undefined,
+        });
+
+        if (!registerResult.ok) {
+          setIsLoading(false);
+          setErrorMessage('Este e-mail já está cadastrado. Faça login.');
+          return;
+        }
+
         const session: UserSession = {
-          email: email.toLowerCase().trim(),
+          email: normalizedEmail,
           name: name.trim(),
           username: username.trim(),
           role: selectedRole,
@@ -488,39 +701,196 @@ export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
       }
     }, 1200);
   };
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+  const [googleRequest, googleResponse, promptGoogleAuth] = Google.useAuthRequest({
+    clientId: Platform.OS === 'web' ? GOOGLE_WEB_CLIENT_ID : undefined,
+    webClientId: GOOGLE_WEB_CLIENT_ID,
+    androidClientId: GOOGLE_ANDROID_CLIENT_ID,
+    iosClientId: GOOGLE_IOS_CLIENT_ID,
+    scopes: ['openid', 'profile', 'email'],
+    selectAccount: true,
+  });
 
-  const [socialPlatform, setSocialPlatform] = useState<'Google' | 'Apple' | null>(null);
+  const completeGoogleLogin = useCallback(async (profile: {
+    email?: string | null;
+    name?: string | null;
+    picture?: string | null;
+    photo?: string | null;
+  }) => {
+    const emailFromGoogle = String(profile.email ?? '').toLowerCase().trim();
 
-  const handleSocialLogin = (platform: 'Google' | 'Apple') => {
-    setSocialPlatform(platform);
+    if (!emailFromGoogle) {
+      throw new Error('Google profile missing email');
+    }
+
+    const session: UserSession = {
+      email: emailFromGoogle,
+      name: profile.name ?? emailFromGoogle.split('@')[0],
+      username: emailFromGoogle.split('@')[0],
+      role: 'estudante',
+      avatar: profile.picture ?? profile.photo ?? undefined,
+    };
+
+    await AppStorage.upsertSocialUser({
+      email: session.email,
+      name: session.name,
+      username: session.username,
+      role: session.role,
+      avatar: session.avatar,
+      provider: 'google',
+    });
+    await AppStorage.setSession(session);
+    onLoginSuccess(session);
+  }, [onLoginSuccess]);
+
+  const handleGoogleLogin = async () => {
+    const isExpoGoOnNative =
+      Platform.OS !== 'web' && Constants.executionEnvironment === 'storeClient';
+    if (isExpoGoOnNative) {
+      setErrorMessage(
+        'Google Login no mobile não funciona no Expo Go (redirect exp://). Use um Development Build para autenticar no Android/iOS.'
+      );
+      return;
+    }
+
+    if (Platform.OS !== 'web') {
+      if (!GOOGLE_WEB_CLIENT_ID) {
+        setErrorMessage('Configure EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID para ativar login com Google no Android/iOS.');
+        return;
+      }
+
+      setIsGoogleLoading(true);
+      setIsLoading(true);
+      setErrorMessage('');
+      setSuccessMessage('');
+
+      if (!GoogleSignin) {
+        setErrorMessage('Login com Google não está disponível neste build. Use e-mail e senha.');
+        setIsGoogleLoading(false);
+        setIsLoading(false);
+        return;
+      }
+
+      try {
+        await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+        const response = await GoogleSignin.signIn();
+
+        if (response.type === 'cancelled') {
+          return;
+        }
+
+        await completeGoogleLogin({
+          email: response.data.user.email,
+          name: response.data.user.name,
+          photo: response.data.user.photo,
+        });
+      } catch (err) {
+        if (isErrorWithCode && isErrorWithCode(err) && statusCodes && err.code === statusCodes.SIGN_IN_CANCELLED) {
+          return;
+        }
+
+        if (isErrorWithCode && isErrorWithCode(err) && statusCodes && err.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
+          setErrorMessage('Google Play Services não está disponível ou precisa ser atualizado.');
+          return;
+        }
+
+        setErrorMessage('Erro ao conectar com Google. Confira o SHA-1/package do Android no Google Cloud e tente novamente.');
+      } finally {
+        setIsGoogleLoading(false);
+        setIsLoading(false);
+      }
+      return;
+    }
+
+    if (!GOOGLE_WEB_CLIENT_ID) {
+      setErrorMessage('Configure EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID para ativar login com Google na web.');
+      return;
+    }
+    if (!googleRequest) {
+      setErrorMessage('Login Google ainda está inicializando. Tente novamente em alguns segundos.');
+      return;
+    }
+
+    setIsGoogleLoading(true);
     setErrorMessage('');
+    setSuccessMessage('');
+    await promptGoogleAuth();
   };
 
-  const handleSocialAccountSelect = (acc: typeof SOCIAL_ACCOUNTS['Google'][0]) => {
-    const platform = socialPlatform!;
-    setSocialPlatform(null);
+  useEffect(() => {
+    const runGoogleAuth = async () => {
+      if (!googleResponse) return;
+      if (googleResponse.type !== 'success') {
+        setIsGoogleLoading(false);
+        if (googleResponse.type !== 'dismiss' && googleResponse.type !== 'cancel') {
+          setErrorMessage('Falha ao autenticar com Google.');
+        }
+        return;
+      }
+
+      const accessToken = googleResponse.authentication?.accessToken ?? googleResponse.params?.access_token;
+      if (!accessToken) {
+        setIsGoogleLoading(false);
+        setErrorMessage('Não foi possível obter o token de acesso do Google.');
+        return;
+      }
+
+      setIsLoading(true);
+      setErrorMessage('');
+      setSuccessMessage('');
+
+      try {
+        const profileResponse = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
+        const profile = await profileResponse.json();
+        await completeGoogleLogin(profile);
+      } catch {
+        setErrorMessage('Erro ao conectar com Google. Tente novamente.');
+      } finally {
+        setIsGoogleLoading(false);
+        setIsLoading(false);
+      }
+    };
+
+    runGoogleAuth();
+  }, [completeGoogleLogin, googleResponse]);
+
+  const handleSocialLogin = async (platform: 'Google' | 'Apple') => {
+    if (platform === 'Google') {
+      await handleGoogleLogin();
+      return;
+    }
+
     setIsLoading(true);
     setErrorMessage('');
+    setSuccessMessage('');
 
     setTimeout(async () => {
       try {
         const session: UserSession = {
-          email: acc.email,
-          name: acc.name,
-          role: acc.role as UserRole,
-          avatar: acc.avatar,
+          email: email.toLowerCase().trim() || 'apple-user@icloud.com',
+          name: name.trim() || 'Usuário Apple',
+          role: 'estudante',
         };
 
+        await AppStorage.upsertSocialUser({
+          email: session.email,
+          name: session.name,
+          username: session.username,
+          role: session.role,
+          avatar: session.avatar,
+          provider: 'apple',
+        });
         await AppStorage.setSession(session);
         setIsLoading(false);
         onLoginSuccess(session);
       } catch {
         setIsLoading(false);
-        setErrorMessage(`Falha ao conectar com ${platform}.`);
+        setErrorMessage('Falha ao conectar com Apple.');
       }
     }, 1200);
   };
-
   return (
     <View style={{ flex: 1, backgroundColor: '#09090b' }}>
       <RadarPattern />
@@ -535,7 +905,7 @@ export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
           />
           <Text style={[styles.title, { color: theme.text }]}>ImpactoEJ</Text>
           <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
-            A trilha de fundação e conexão do ecossistema MEJ na UERN.
+            A trilha de fundaÃ§Ã£o e conexÃ£o do ecossistema MEJ na UERN.
           </Text>
         </View>
 
@@ -596,7 +966,13 @@ export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
 
         {errorMessage ? (
           <View style={styles.errorContainer}>
-            <Text style={styles.errorText}>⚠️ {errorMessage}</Text>
+            <Text style={styles.errorText}>âš ï¸ {errorMessage}</Text>
+          </View>
+        ) : null}
+
+        {successMessage ? (
+          <View style={styles.successContainer}>
+            <Text style={styles.successText}>{successMessage}</Text>
           </View>
         ) : null}
 
@@ -623,7 +999,7 @@ export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
 
           {isRegistering && (
             <View style={styles.inputGroup}>
-              <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Nome de Usuário</Text>
+              <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Nome de UsuÃ¡rio</Text>
               <TextInput
                 style={[
                   styles.input,
@@ -669,7 +1045,7 @@ export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
                 { backgroundColor: theme.background, borderColor: theme.border, color: theme.text },
                 focusedField === 'password' && { borderColor: theme.primary },
               ]}
-              placeholder="••••••••"
+              placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢"
               placeholderTextColor={theme.textSecondary}
               secureTextEntry
               autoCapitalize="none"
@@ -680,6 +1056,12 @@ export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
             />
             {isRegistering && <StrengthIndicator text={password} />}
           </View>
+
+          {!isRegistering && (
+            <Pressable style={styles.forgotPasswordButton} onPress={openForgotPassword}>
+              <Text style={[styles.forgotPasswordText, { color: theme.primary }]}>Esqueci minha senha</Text>
+            </Pressable>
+          )}
 
           {/* Optional Profile Picture Picker */}
           {isRegistering && (
@@ -696,7 +1078,7 @@ export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
                     setAvatar('');
                   }}>
                   <Text style={[styles.avatarToggleText, !wantsAvatar && { color: theme.primary }]}>
-                    Não
+                    NÃ£o
                   </Text>
                 </Pressable>
                 <Pressable
@@ -740,12 +1122,12 @@ export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
                       <Image source={{ uri: avatar }} style={[styles.customAvatarPreview, { borderColor: theme.primary }]} />
                     ) : (
                       <View style={[styles.customAvatarPlaceholder, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
-                        <Text style={{ fontSize: 24 }}>{avatar && !PIXEL_AVATARS[avatar] && !avatar.startsWith('http') ? avatar : '👤'}</Text>
+                        <Text style={{ fontSize: 24 }}>{avatar && !PIXEL_AVATARS[avatar] && !avatar.startsWith('http') ? avatar : 'ðŸ‘¤'}</Text>
                       </View>
                     )}
                     
                     <Pressable style={[styles.uploadBtn, { backgroundColor: theme.backgroundSelected, borderColor: theme.border }]} onPress={pickImage}>
-                      <Text style={[styles.uploadBtnText, { color: theme.text }]}>📸 Escolher da Galeria</Text>
+                      <Text style={[styles.uploadBtnText, { color: theme.text }]}>ðŸ“¸ Escolher da Galeria</Text>
                     </Pressable>
                   </View>
                 </View>
@@ -765,7 +1147,7 @@ export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
                     selectedRole === 'estudante' && { borderColor: theme.primary, backgroundColor: theme.backgroundSelected },
                   ]}
                   onPress={() => setSelectedRole('estudante')}>
-                  <Text style={styles.roleEmoji}>🎓</Text>
+                  <Text style={styles.roleEmoji}>ðŸŽ“</Text>
                   <Text
                     style={[
                       styles.roleText,
@@ -784,14 +1166,14 @@ export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
                     selectedRole === 'lider' && { borderColor: theme.primary, backgroundColor: theme.backgroundSelected },
                   ]}
                   onPress={() => setSelectedRole('lider')}>
-                  <Text style={styles.roleEmoji}>💼</Text>
+                  <Text style={styles.roleEmoji}>ðŸ’¼</Text>
                   <Text
                     style={[
                       styles.roleText,
                       { color: theme.textSecondary },
                       selectedRole === 'lider' && { color: theme.primary },
                     ]}>
-                    Líder
+                    LÃ­der
                   </Text>
                   <Text style={[styles.roleSub, { color: theme.textSecondary }]}>Divulgar</Text>
                 </Pressable>
@@ -803,7 +1185,7 @@ export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
                     selectedRole === 'admin' && { borderColor: theme.primary, backgroundColor: theme.backgroundSelected },
                   ]}
                   onPress={() => setSelectedRole('admin')}>
-                  <Text style={styles.roleEmoji}>⚡</Text>
+                  <Text style={styles.roleEmoji}>âš¡</Text>
                   <Text
                     style={[
                       styles.roleText,
@@ -852,13 +1234,14 @@ export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
         <View style={styles.socialContainer}>
           <Pressable
             style={[styles.socialButton, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}
+            disabled={isGoogleLoading || (Platform.OS === 'web' && !googleRequest)}
             onPress={() => handleSocialLogin('Google')}>
             <Image 
               source={require('@/assets/images/google.png')} 
               style={{ width: 18, height: 18 }} 
               resizeMode="contain" 
             />
-            <Text style={[styles.socialButtonText, { color: theme.text }]}>Google</Text>
+            <Text style={[styles.socialButtonText, { color: theme.text }]}>{isGoogleLoading ? 'Conectando...' : 'Google'}</Text>
           </Pressable>
 
           <Pressable
@@ -875,113 +1258,116 @@ export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
       </View>
     </ScrollView>
 
-    {socialPlatform && (
+    {isForgotPasswordOpen && (
       <View style={styles.modalOverlay}>
-        {socialPlatform === 'Google' ? (
-          <View style={[styles.googleSheetContainer, { backgroundColor: isDark ? '#202124' : '#FFFFFF' }]}>
-            <View style={{ alignItems: 'center', marginBottom: 12 }}>
-              <Image 
-                source={require('@/assets/images/google.png')} 
-                style={{ width: 26, height: 26, marginBottom: 8 }} 
-                resizeMode="contain" 
-              />
-              <Text style={[styles.googleSheetTitle, { color: isDark ? '#E8EAED' : '#202124' }]}>Escolher uma conta</Text>
-              <Text style={[styles.googleSheetSubtitle, { color: isDark ? '#9AA0A6' : '#5F6368' }]}>para prosseguir no ImpactoEJ</Text>
-            </View>
-            
-            <View style={{ marginVertical: 8 }}>
-              {SOCIAL_ACCOUNTS.Google.map((acc, index) => (
-                <Pressable
-                  key={index}
-                  style={({ pressed }) => [
-                    styles.googleAccountRow, 
-                    { 
-                      borderBottomColor: isDark ? '#3C4043' : '#F1F3F4',
-                      backgroundColor: pressed ? (isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)') : 'transparent'
-                    }
-                  ]}
-                  onPress={() => handleSocialAccountSelect(acc)}
-                >
-                  <View style={[styles.googleAvatarCircle, { backgroundColor: index === 0 ? '#1A73E8' : index === 1 ? '#0F9D58' : '#D56200' }]}>
-                    <Text style={styles.googleAvatarText}>{acc.name.charAt(0)}</Text>
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={[styles.googleAccountName, { color: isDark ? '#E8EAED' : '#3C4043' }]}>{acc.name}</Text>
-                    <Text style={[styles.googleAccountEmail, { color: isDark ? '#9AA0A6' : '#5F6368' }]}>{acc.email}</Text>
-                  </View>
-                </Pressable>
-              ))}
-              
-              <Pressable
-                style={({ pressed }) => [
-                  styles.googleAccountRow,
-                  { backgroundColor: pressed ? (isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)') : 'transparent' }
-                ]}
-                onPress={() => setSocialPlatform(null)}
-              >
-                <View style={[styles.googleAvatarCircle, { backgroundColor: isDark ? '#3C4043' : '#F1F3F4' }]}>
-                  <Text style={[styles.googleAvatarText, { color: isDark ? '#E8EAED' : '#5F6368', fontSize: 13 }]}>👤</Text>
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.googleAccountName, { color: isDark ? '#E8EAED' : '#3C4043', fontWeight: '500' }]}>Usar outra conta</Text>
-                </View>
-              </Pressable>
-            </View>
+        <View style={[styles.modalContent, { backgroundColor: isDark ? '#131C2E' : '#FFFFFF', borderColor: theme.border }]}>
+          <Text style={[styles.modalTitle, { color: theme.text }]}>Redefinir senha</Text>
+          <Text style={[styles.modalSubtitle, { color: theme.textSecondary }]}>
+            {isResetCodeSent
+              ? 'Digite o código recebido por e-mail e escolha uma nova senha.'
+              : 'Informe o e-mail cadastrado para receber um código de recuperação.'}
+          </Text>
 
-            <Text style={[styles.googleSheetFooter, { color: isDark ? '#9AA0A6' : '#70757A' }]}>
-              Para continuar, o Google compartilhará seu nome, endereço de e-mail, foto do perfil e preferências com o aplicativo ImpactoEJ. Antes de usar este app, leia a política de privacidade e os termos de serviço.
-            </Text>
-            
-            <Pressable 
-              style={[styles.googleCancelBtn, { borderColor: isDark ? '#5F6368' : '#E8EAED', borderWidth: 1 }]} 
-              onPress={() => setSocialPlatform(null)}
-            >
-              <Text style={{ color: isDark ? '#8AB4F8' : '#1A73E8', fontSize: 13, fontWeight: 'bold' }}>Cancelar</Text>
+          {resetErrorMessage ? (
+            <View style={[styles.errorContainer, { marginBottom: 0 }]}>
+              <Text style={styles.errorText}>⚠️ {resetErrorMessage}</Text>
+            </View>
+          ) : null}
+
+          {resetSuccessMessage ? (
+            <View style={[styles.successContainer, { marginBottom: 0 }]}>
+              <Text style={styles.successText}>{resetSuccessMessage}</Text>
+            </View>
+          ) : null}
+
+          <View style={styles.inputGroup}>
+            <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>E-mail</Text>
+            <TextInput
+              style={[styles.modalInput, { backgroundColor: theme.background, borderColor: theme.border, color: theme.text }]}
+              placeholder="exemplo@uern.br"
+              placeholderTextColor={theme.textSecondary}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              editable={!isResetCodeSent && !isResettingPassword}
+              value={resetEmail}
+              onChangeText={setResetEmail}
+            />
+          </View>
+
+          {isResetCodeSent && (
+            <>
+              <View style={styles.inputGroup}>
+                <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Código recebido</Text>
+                <TextInput
+                  style={[styles.modalInput, styles.resetCodeInput, { backgroundColor: theme.background, borderColor: theme.border, color: theme.text }]}
+                  placeholder="000000"
+                  placeholderTextColor={theme.textSecondary}
+                  keyboardType="number-pad"
+                  maxLength={6}
+                  value={resetCode}
+                  onChangeText={(value) => setResetCode(value.replace(/\D/g, '').slice(0, 6))}
+                />
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Nova senha</Text>
+                <TextInput
+                  style={[styles.modalInput, { backgroundColor: theme.background, borderColor: theme.border, color: theme.text }]}
+                  placeholder="••••••••"
+                  placeholderTextColor={theme.textSecondary}
+                  secureTextEntry
+                  autoCapitalize="none"
+                  value={resetPassword}
+                  onChangeText={setResetPassword}
+                />
+                <StrengthIndicator text={resetPassword} />
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Confirmar senha</Text>
+                <TextInput
+                  style={[styles.modalInput, { backgroundColor: theme.background, borderColor: theme.border, color: theme.text }]}
+                  placeholder="••••••••"
+                  placeholderTextColor={theme.textSecondary}
+                  secureTextEntry
+                  autoCapitalize="none"
+                  value={resetPasswordConfirm}
+                  onChangeText={setResetPasswordConfirm}
+                />
+              </View>
+            </>
+          )}
+
+          <View style={styles.modalButtons}>
+            <Pressable
+              style={[styles.modalBtn, { backgroundColor: theme.backgroundElement, borderWidth: 1, borderColor: theme.border }]}
+              disabled={isResettingPassword}
+              onPress={closeForgotPassword}>
+              <Text style={[styles.modalBtnText, { color: theme.text }]}>Cancelar</Text>
+            </Pressable>
+            <Pressable
+              style={[styles.modalBtn, { backgroundColor: theme.primary }, isResettingPassword && styles.actionButtonDisabled]}
+              disabled={isResettingPassword}
+              onPress={isResetCodeSent ? handlePasswordReset : handleSendPasswordResetEmail}>
+              {isResettingPassword ? (
+                <ActivityIndicator color="#FFFFFF" size="small" />
+              ) : (
+                <Text style={[styles.modalBtnText, { color: '#FFFFFF' }]}>
+                  {isResetCodeSent ? 'Salvar senha' : 'Enviar código'}
+                </Text>
+              )}
             </Pressable>
           </View>
-        ) : (
-          <View style={styles.appleSheetContainer}>
-            <View style={{ alignItems: 'center', marginBottom: 20 }}>
-              <Image 
-                source={require('@/assets/images/apple.png')} 
-                style={{ width: 36, height: 36, tintColor: '#FFFFFF', marginBottom: 12 }} 
-                resizeMode="contain" 
-              />
-              <Text style={styles.appleSheetTitle}>ID Apple</Text>
-              <Text style={styles.appleSheetSubtitle}>Iniciar sessão no ImpactoEJ com o seu ID Apple.</Text>
-            </View>
-            
-            <View style={styles.appleAccountField}>
-              <Text style={styles.appleFieldLabel}>CONTA</Text>
-              <Text style={styles.appleFieldValue}>{SOCIAL_ACCOUNTS.Apple[0].email}</Text>
-            </View>
-            
-            <View style={styles.appleAccountField}>
-              <Text style={styles.appleFieldLabel}>NOME</Text>
-              <Text style={styles.appleFieldValue}>{SOCIAL_ACCOUNTS.Apple[0].name}</Text>
-            </View>
 
-            <View style={styles.appleShareChoice}>
-              <Text style={styles.appleChoiceText}>✓ Compartilhar Meu E-mail</Text>
-            </View>
-            
-            <View style={{ gap: 10, marginTop: 20 }}>
-              <Pressable 
-                style={({ pressed }) => [styles.appleContinueBtn, pressed && { opacity: 0.8 }]}
-                onPress={() => handleSocialAccountSelect(SOCIAL_ACCOUNTS.Apple[0])}
-              >
-                <Text style={styles.appleContinueText}>Continuar com Face ID / Senha</Text>
-              </Pressable>
-              
-              <Pressable 
-                style={({ pressed }) => [styles.appleCancelBtn, pressed && { opacity: 0.8 }]}
-                onPress={() => setSocialPlatform(null)}
-              >
-                <Text style={styles.appleCancelText}>Cancelar</Text>
-              </Pressable>
-            </View>
-          </View>
-        )}
+          {isResetCodeSent && (
+            <Pressable
+              disabled={isResettingPassword}
+              onPress={handleSendPasswordResetEmail}
+              style={styles.resendCodeButton}>
+              <Text style={[styles.resendCodeText, { color: theme.primary }]}>Reenviar código</Text>
+            </Pressable>
+          )}
+        </View>
       </View>
     )}
   </View>
@@ -1085,6 +1471,19 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '500',
   },
+  successContainer: {
+    backgroundColor: '#10B9811F',
+    borderWidth: 1,
+    borderColor: '#10B9814D',
+    borderRadius: 12,
+    padding: Spacing.three,
+    marginBottom: Spacing.four,
+  },
+  successText: {
+    color: '#34D399',
+    fontSize: 13,
+    fontWeight: '500',
+  },
   form: {
     gap: Spacing.four,
   },
@@ -1170,6 +1569,16 @@ const styles = StyleSheet.create({
   actionButtonText: {
     color: '#FFFFFF',
     fontSize: 16,
+    fontWeight: '700',
+  },
+  forgotPasswordButton: {
+    alignSelf: 'flex-end',
+    paddingVertical: Spacing.one,
+    paddingHorizontal: 2,
+    marginTop: -Spacing.two,
+  },
+  forgotPasswordText: {
+    fontSize: 13,
     fontWeight: '700',
   },
   separatorContainer: {
@@ -1409,6 +1818,18 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 18,
   },
+  inlineInfoContainer: {
+    backgroundColor: '#10B9811F',
+    borderWidth: 1,
+    borderColor: '#10B9814D',
+    borderRadius: 10,
+    padding: Spacing.two,
+  },
+  inlineInfoText: {
+    color: '#34D399',
+    fontSize: 12,
+    fontWeight: '600',
+  },
   modalInput: {
     width: '100%',
     height: 48,
@@ -1417,6 +1838,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.three,
     fontSize: 14,
     marginTop: Spacing.two,
+  },
+  resetCodeInput: {
+    textAlign: 'center',
+    fontSize: 22,
+    fontWeight: '800',
+    letterSpacing: 8,
   },
   modalButtons: {
     flexDirection: 'row',
@@ -1433,6 +1860,15 @@ const styles = StyleSheet.create({
   modalBtnText: {
     fontSize: 13,
     fontWeight: 'bold',
+  },
+  resendCodeButton: {
+    alignSelf: 'center',
+    paddingVertical: Spacing.one,
+    paddingHorizontal: Spacing.two,
+  },
+  resendCodeText: {
+    fontSize: 13,
+    fontWeight: '700',
   },
   accountSelectCard: {
     flexDirection: 'row',

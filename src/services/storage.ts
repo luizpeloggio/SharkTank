@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Crypto from 'expo-crypto';
 
 // Define TS Types for our application state
 export type UserRole = 'estudante' | 'lider' | 'admin';
@@ -49,6 +50,23 @@ export interface UserSession {
   username?: string;
   role: UserRole;
   avatar?: string;
+}
+
+export interface RegisteredUser {
+  email: string;
+  password?: string;
+  name?: string;
+  username?: string;
+  role: UserRole;
+  avatar?: string;
+  provider: 'email' | 'google' | 'apple';
+}
+
+export interface PasswordResetRequest {
+  email: string;
+  codeHash: string;
+  expiresAt: number;
+  attempts: number;
 }
 
 // Initial Mock Data
@@ -239,6 +257,8 @@ const KEYS = {
   SHARK_PROJECTS: '@uern_impactoej_shark_projects',
   SESSION: '@uern_impactoej_user_session',
   CHECKED_SUBITEMS: '@uern_impactoej_checked_subitems',
+  USERS: '@uern_impactoej_users',
+  PASSWORD_RESET_REQUEST: '@uern_impactoej_password_reset_request',
 };
 
 export const AppStorage = {
@@ -285,6 +305,152 @@ export const AppStorage = {
     } catch (e) {
       console.error('Error clearing session', e);
     }
+  },
+
+  // --- USERS ---
+  async getUsers(): Promise<RegisteredUser[]> {
+    try {
+      const data = await AsyncStorage.getItem(KEYS.USERS);
+      return data ? JSON.parse(data) : [];
+    } catch {
+      return [];
+    }
+  },
+
+  async saveUsers(users: RegisteredUser[]): Promise<void> {
+    try {
+      await AsyncStorage.setItem(KEYS.USERS, JSON.stringify(users));
+    } catch (e) {
+      console.error('Error saving users', e);
+    }
+  },
+
+  async findUserByEmail(email: string): Promise<RegisteredUser | null> {
+    const normalized = email.toLowerCase().trim();
+    const users = await this.getUsers();
+    return users.find(user => user.email.toLowerCase().trim() === normalized) ?? null;
+  },
+
+  async registerEmailUser(user: Omit<RegisteredUser, 'provider'>): Promise<{ ok: true } | { ok: false; reason: 'email_exists' }> {
+    const normalized = user.email.toLowerCase().trim();
+    const users = await this.getUsers();
+    const exists = users.some(existing => existing.email.toLowerCase().trim() === normalized);
+    if (exists) {
+      return { ok: false, reason: 'email_exists' };
+    }
+
+    users.push({
+      ...user,
+      email: normalized,
+      provider: 'email',
+    });
+    await this.saveUsers(users);
+    return { ok: true };
+  },
+
+  async upsertSocialUser(user: Omit<RegisteredUser, 'provider' | 'password'> & { provider: 'google' | 'apple' }): Promise<RegisteredUser> {
+    const normalized = user.email.toLowerCase().trim();
+    const users = await this.getUsers();
+    const index = users.findIndex(existing => existing.email.toLowerCase().trim() === normalized);
+    const upserted: RegisteredUser = {
+      ...user,
+      email: normalized,
+      provider: user.provider,
+    };
+
+    if (index >= 0) {
+      users[index] = {
+        ...users[index],
+        ...upserted,
+        password: users[index].provider === 'email' ? users[index].password : undefined,
+      };
+    } else {
+      users.push(upserted);
+    }
+
+    await this.saveUsers(users);
+    return upserted;
+  },
+
+  async updateEmailUserPassword(email: string, password: string): Promise<{ ok: true } | { ok: false; reason: 'not_found' | 'social_account' }> {
+    const normalized = email.toLowerCase().trim();
+    const users = await this.getUsers();
+    const index = users.findIndex(existing => existing.email.toLowerCase().trim() === normalized);
+
+    if (index < 0) {
+      return { ok: false, reason: 'not_found' };
+    }
+
+    if (users[index].provider !== 'email') {
+      return { ok: false, reason: 'social_account' };
+    }
+
+    users[index] = {
+      ...users[index],
+      password,
+    };
+    await this.saveUsers(users);
+    return { ok: true };
+  },
+
+  async createPasswordResetRequest(email: string, code: string): Promise<void> {
+    const normalized = email.toLowerCase().trim();
+    const codeHash = await Crypto.digestStringAsync(
+      Crypto.CryptoDigestAlgorithm.SHA256,
+      `${normalized}:${code}`
+    );
+    const request: PasswordResetRequest = {
+      email: normalized,
+      codeHash,
+      expiresAt: Date.now() + 15 * 60 * 1000,
+      attempts: 0,
+    };
+
+    await AsyncStorage.setItem(KEYS.PASSWORD_RESET_REQUEST, JSON.stringify(request));
+  },
+
+  async verifyPasswordResetCode(email: string, code: string): Promise<{ ok: true } | { ok: false; reason: 'not_requested' | 'expired' | 'invalid' | 'too_many_attempts' }> {
+    const normalized = email.toLowerCase().trim();
+    const data = await AsyncStorage.getItem(KEYS.PASSWORD_RESET_REQUEST);
+
+    if (!data) {
+      return { ok: false, reason: 'not_requested' };
+    }
+
+    const request = JSON.parse(data) as PasswordResetRequest;
+
+    if (request.email !== normalized) {
+      return { ok: false, reason: 'invalid' };
+    }
+
+    if (request.expiresAt < Date.now()) {
+      await AsyncStorage.removeItem(KEYS.PASSWORD_RESET_REQUEST);
+      return { ok: false, reason: 'expired' };
+    }
+
+    if (request.attempts >= 5) {
+      await AsyncStorage.removeItem(KEYS.PASSWORD_RESET_REQUEST);
+      return { ok: false, reason: 'too_many_attempts' };
+    }
+
+    const codeHash = await Crypto.digestStringAsync(
+      Crypto.CryptoDigestAlgorithm.SHA256,
+      `${normalized}:${code.trim()}`
+    );
+
+    if (codeHash !== request.codeHash) {
+      await AsyncStorage.setItem(
+        KEYS.PASSWORD_RESET_REQUEST,
+        JSON.stringify({ ...request, attempts: request.attempts + 1 })
+      );
+      return { ok: false, reason: 'invalid' };
+    }
+
+    return { ok: true };
+  },
+
+  async clearPasswordResetRequest(): Promise<void> {
+    await AsyncStorage.removeItem(KEYS.PASSWORD_RESET_REQUEST);
   },
   // --- USER ROLE ---
   async getRole(): Promise<UserRole> {
@@ -442,6 +608,7 @@ export const AppStorage = {
       await AsyncStorage.removeItem(KEYS.SHARK_VOTES);
       await AsyncStorage.removeItem(KEYS.SESSION);
       await AsyncStorage.removeItem(KEYS.CHECKED_SUBITEMS);
+      await AsyncStorage.removeItem(KEYS.USERS);
     } catch (e) {
       console.error('Error resetting AppStorage', e);
     }
