@@ -1,23 +1,23 @@
-import React, { useState, useEffect } from 'react';
-import {
-  Platform,
-  StyleSheet,
-  ScrollView,
-  View,
-  Pressable,
-  Modal,
-  TextInput,
-  Alert,
-  FlatList,
-  Image,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { AppStorage, FeedPost, UserRole } from '@/services/storage';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Spacing, Colors, MaxContentWidth } from '@/constants/theme';
-import { useTheme } from '@/hooks/use-theme';
 import { UserProfileHeader } from '@/components/user-profile-header';
+import { MaxContentWidth, Spacing } from '@/constants/theme';
+import { useTheme } from '@/hooks/use-theme';
+import { AppStorage, FeedPost, UserRole } from '@/services/storage';
+import React, { useEffect, useState } from 'react';
+import {
+    Alert,
+    FlatList,
+    Image,
+    Modal,
+    Platform,
+    Pressable,
+    ScrollView,
+    StyleSheet,
+    TextInput,
+    View,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 export interface B2BService {
   id: string;
@@ -263,9 +263,12 @@ export default function FeedScreen() {
             }}
             onPress={() => setActiveView('marketplace')}
           >
-            <ThemedText type="smallBold" style={{ color: activeView === 'marketplace' ? '#FFF' : theme.text }}>
-              🛍️ Serviços B2B
-            </ThemedText>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+              <Image source={require('@/assets/images/cardapio.png')} style={{ width: 28, height: 28, resizeMode: 'contain' }} />
+              <ThemedText type="smallBold" style={{ color: activeView === 'marketplace' ? '#FFF' : theme.text }}>
+                Serviços B2B
+              </ThemedText>
+            </View>
           </Pressable>
         </View>
 

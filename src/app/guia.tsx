@@ -1,29 +1,28 @@
-import React, { useState, useEffect } from 'react';
+import { ThemedText } from '@/components/themed-text';
+import { ThemedView } from '@/components/themed-view';
+import { UserProfileHeader } from '@/components/user-profile-header';
+import { MaxContentWidth, Spacing } from '@/constants/theme';
+import { useTheme } from '@/hooks/use-theme';
 import {
-  Platform,
-  StyleSheet,
-  ScrollView,
-  View,
-  Pressable,
-  Modal,
-  FlatList,
-  Alert,
-  Dimensions,
-  TextInput,
+    AppStorage,
+    INITIAL_TRAIL_STEPS,
+    TrailStep
+} from '@/services/storage';
+import React, { useEffect, useState } from 'react';
+import {
+    Alert,
+    FlatList,
+    Image,
+    Modal,
+    Platform,
+    Pressable,
+    ScrollView,
+    StyleSheet,
+    TextInput,
+    View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Circle } from 'react-native-svg';
-import {
-  AppStorage,
-  INITIAL_TRAIL_STEPS,
-  SHARKS,
-  TrailStep,
-} from '@/services/storage';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Spacing, Colors, MaxContentWidth } from '@/constants/theme';
-import { useTheme } from '@/hooks/use-theme';
-import { UserProfileHeader } from '@/components/user-profile-header';
 
 export interface Mentor {
   id: string;
@@ -315,7 +314,8 @@ export default function GuiaScreen() {
         <UserProfileHeader />
         
         {/* HEADER SECTION */}
-        <View style={styles.header}>
+        <View style={[styles.header, { alignItems: 'center' }]}>
+          <Image source={require('@/assets/images/caminho-do-segmento.png')} style={{ width: 240, height: 120, resizeMode: 'contain', marginBottom: Spacing.two }} />
           <View>
             <ThemedText type="smallBold" style={{ color: theme.primary }}>
               CAMINHO DAS PEDRAS

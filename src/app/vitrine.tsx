@@ -1,21 +1,21 @@
-import React, { useState, useEffect } from 'react';
-import {
-  StyleSheet,
-  ScrollView,
-  View,
-  Pressable,
-  FlatList,
-  Platform,
-  Alert,
-  Image,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useFocusEffect } from '@react-navigation/native';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Spacing, Colors, MaxContentWidth, Fonts } from '@/constants/theme';
-import { useTheme } from '@/hooks/use-theme';
 import { UserProfileHeader } from '@/components/user-profile-header';
+import { Fonts, MaxContentWidth, Spacing } from '@/constants/theme';
+import { useTheme } from '@/hooks/use-theme';
+import { useFocusEffect } from '@react-navigation/native';
+import React, { useState } from 'react';
+import {
+    Alert,
+    FlatList,
+    Image,
+    Platform,
+    Pressable,
+    ScrollView,
+    StyleSheet,
+    View,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 interface Testimonial {
   id: string;
@@ -277,7 +277,8 @@ export default function VitrineScreen() {
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
           
           {/* HEADER */}
-          <View style={styles.header}>
+          <View style={[styles.header, { alignItems: 'center', marginBottom: Spacing.three }]}>
+            <Image source={require('@/assets/images/foguete-inclinado.png')} style={{ width: 180, height: 140, resizeMode: 'contain', marginBottom: Spacing.two }} />
             <ThemedText type="smallBold" style={{ color: vColors.primary, fontFamily: Fonts.mono }}>
               [ SISTEMA DE DESIGN & IDENTIDADE ]
             </ThemedText>

@@ -18,22 +18,22 @@ export default function AppTabs() {
       }}>
       <NativeTabs.Trigger name="index">
         <Label>Principal</Label>
-        <Icon src={require('@/assets/images/tabIcons/feed.png')} />
+        <Icon src={require('@/assets/images/tabIcons/cardapio.png')} />
       </NativeTabs.Trigger>
 
       <NativeTabs.Trigger name="guia">
         <Label>Guia</Label>
-        <Icon src={require('@/assets/images/tabIcons/trail.png')} />
+        <Icon src={require('@/assets/images/tabIcons/caminho-do-segmento.png')} />
       </NativeTabs.Trigger>
 
       <NativeTabs.Trigger name="vitrine">
         <Label>Vitrine</Label>
-        <Icon src={require('@/assets/images/tabIcons/vitrine.png')} />
+        <Icon src={require('@/assets/images/tabIcons/foguete-inclinado.png')} />
       </NativeTabs.Trigger>
 
       <NativeTabs.Trigger name="sharktank">
         <Label>Shark Tank</Label>
-        <Icon src={require('@/assets/images/tabIcons/sharktank.png')} />
+        <Icon src={require('@/assets/images/tubaraozao.png')} />
       </NativeTabs.Trigger>
 
       <NativeTabs.Trigger name="profile">

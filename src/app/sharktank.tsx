@@ -1,24 +1,24 @@
-import React, { useState, useEffect } from 'react';
-import {
-  StyleSheet,
-  ScrollView,
-  View,
-  Pressable,
-  Modal,
-  TextInput,
-  Alert,
-  FlatList,
-  Platform,
-  Image,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import * as ImagePicker from 'expo-image-picker';
-import { AppStorage, SharkProject, SHARKS } from '@/services/storage';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Spacing, Colors, MaxContentWidth } from '@/constants/theme';
-import { useTheme } from '@/hooks/use-theme';
 import { UserProfileHeader } from '@/components/user-profile-header';
+import { MaxContentWidth, Spacing } from '@/constants/theme';
+import { useTheme } from '@/hooks/use-theme';
+import { AppStorage, SharkProject, SHARKS } from '@/services/storage';
+import * as ImagePicker from 'expo-image-picker';
+import React, { useEffect, useState } from 'react';
+import {
+    Alert,
+    FlatList,
+    Image,
+    Modal,
+    Platform,
+    Pressable,
+    ScrollView,
+    StyleSheet,
+    TextInput,
+    View,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 const SHARK_AVATARS: { [key: string]: any } = {
   'shark-1': require('@/assets/images/Amanda.jpg'),
@@ -193,6 +193,11 @@ export default function SharkTankScreen() {
         <UserProfileHeader />
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
           
+          {/* HEADER VISUAL */}
+          <View style={{ alignItems: 'center', marginBottom: Spacing.three }}>
+            <Image source={require('@/assets/images/width_142.png')} style={{ width: 200, height: 80, resizeMode: 'contain' }} />
+          </View>
+
           {/* SYMPLA SYMPLA EVENTO PANEL */}
           <View style={[styles.eventCard, { backgroundColor: theme.backgroundElement, borderColor: theme.border, borderWidth: 1 }]}>
             <View style={[styles.eventBadge, { backgroundColor: theme.primary, flexDirection: 'row', alignItems: 'center', gap: 6 }]}>

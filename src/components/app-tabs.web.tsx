@@ -1,14 +1,14 @@
 import {
-  Tabs,
-  TabList,
-  TabTrigger,
-  TabSlot,
-  TabTriggerSlotProps,
-  TabListProps,
+    TabList,
+    TabListProps,
+    Tabs,
+    TabSlot,
+    TabTrigger,
+    TabTriggerSlotProps,
 } from 'expo-router/ui';
 import { SymbolView } from 'expo-symbols';
 import React from 'react';
-import { Pressable, View, StyleSheet } from 'react-native';
+import { Image, Pressable, StyleSheet, View } from 'react-native';
 
 import { ExternalLink } from './external-link';
 import { ThemedText } from './themed-text';
@@ -48,6 +48,19 @@ export default function AppTabs() {
 export function TabButton({ children, isFocused, ...props }: TabTriggerSlotProps) {
   const theme = useTheme();
 
+  // Map route names to icon images
+  const iconMap: { [key: string]: any } = {
+    index: require('@/assets/images/tabIcons/cardapio.png'),
+    guia: require('@/assets/images/tabIcons/caminho-do-segmento.png'),
+    vitrine: require('@/assets/images/tabIcons/foguete-inclinado.png'),
+    sharktank: require('@/assets/images/tubaraozao.png'),
+    profile: require('@/assets/images/tabIcons/profile.png'),
+  };
+
+  // Extract route name from props if available
+  const routeName = (props as any)['data-name'] || (children as string)?.toLowerCase();
+  const iconSource = iconMap[routeName];
+
   return (
     <Pressable {...props} style={({ pressed }) => pressed && styles.pressed}>
       <View
@@ -59,6 +72,16 @@ export function TabButton({ children, isFocused, ...props }: TabTriggerSlotProps
             borderWidth: 1,
           },
         ]}>
+        {iconSource && (
+          <Image
+            source={iconSource}
+            style={[
+              styles.tabIcon,
+              { tintColor: isFocused ? theme.primary : theme.textSecondary },
+            ]}
+            resizeMode="contain"
+          />
+        )}
         <ThemedText type="smallBold" style={{ color: isFocused ? theme.primary : theme.textSecondary }}>
           {children}
         </ThemedText>
@@ -124,6 +147,13 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.one,
     paddingHorizontal: Spacing.three,
     borderRadius: Spacing.three,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.one,
+  },
+  tabIcon: {
+    width: 20,
+    height: 20,
   },
   externalPressable: {
     flexDirection: 'row',
