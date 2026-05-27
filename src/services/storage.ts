@@ -4,6 +4,12 @@ import * as Crypto from 'expo-crypto';
 // Define TS Types for our application state
 export type UserRole = 'estudante' | 'lider' | 'admin';
 
+function generateId(): string {
+  const maybe = (Crypto as any)?.randomUUID?.();
+  if (typeof maybe === 'string' && maybe.length > 0) return maybe;
+  return `id_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+}
+
 export interface TrailStep {
   id: number;
   title: string;
@@ -19,9 +25,12 @@ export interface FeedPost {
   title: string;
   content: string;
   author: string;
+  authorAvatar?: string;
   category: 'noticia' | 'vaga' | 'evento';
   tag: string;
   date: string;
+  createdAt?: number;
+  companyId?: string;
   applyUrl?: string;
   likes: number;
 }
@@ -45,6 +54,7 @@ export interface Shark {
 }
 
 export interface UserSession {
+  id: string;
   email: string;
   name?: string;
   username?: string;
@@ -53,6 +63,7 @@ export interface UserSession {
 }
 
 export interface RegisteredUser {
+  id: string;
   email: string;
   password?: string;
   name?: string;
@@ -284,7 +295,20 @@ export const AppStorage = {
   async getSession(): Promise<UserSession | null> {
     try {
       const data = await AsyncStorage.getItem(KEYS.SESSION);
-      return data ? JSON.parse(data) : null;
+      const session = data ? (JSON.parse(data) as UserSession) : null;
+      if (!session) return null;
+
+      // Migration: older sessions didn't store `id`
+      if (!(session as any).id) {
+        const found = await this.findUserByEmail(session.email);
+        if (found?.id) {
+          const upgraded = { ...session, id: found.id } as UserSession;
+          await AsyncStorage.setItem(KEYS.SESSION, JSON.stringify(upgraded));
+          return upgraded;
+        }
+      }
+
+      return session;
     } catch {
       return null;
     }
@@ -292,7 +316,9 @@ export const AppStorage = {
 
   async setSession(session: UserSession): Promise<void> {
     try {
-      await AsyncStorage.setItem(KEYS.SESSION, JSON.stringify(session));
+      // Ensure id is present (e.g. callers created a temp session)
+      const ensured = session.id ? session : { ...session, id: (await this.findUserByEmail(session.email))?.id ?? 'temp' };
+      await AsyncStorage.setItem(KEYS.SESSION, JSON.stringify(ensured));
       await this.setRole(session.role);
     } catch (e) {
       console.error('Error saving session', e);
@@ -311,7 +337,17 @@ export const AppStorage = {
   async getUsers(): Promise<RegisteredUser[]> {
     try {
       const data = await AsyncStorage.getItem(KEYS.USERS);
-      return data ? JSON.parse(data) : [];
+      const parsed = (data ? JSON.parse(data) : []) as RegisteredUser[];
+      let changed = false;
+      const normalized = parsed.map((u: any) => {
+        if (u?.id) return u as RegisteredUser;
+        changed = true;
+        return { ...u, id: generateId() } as RegisteredUser;
+      });
+      if (changed) {
+        await AsyncStorage.setItem(KEYS.USERS, JSON.stringify(normalized));
+      }
+      return normalized;
     } catch {
       return [];
     }
@@ -339,11 +375,7 @@ export const AppStorage = {
       return { ok: false, reason: 'email_exists' };
     }
 
-    users.push({
-      ...user,
-      email: normalized,
-      provider: 'email',
-    });
+    users.push({ ...user, id: user.id || generateId(), email: normalized, provider: 'email' });
     await this.saveUsers(users);
     return { ok: true };
   },
@@ -354,6 +386,7 @@ export const AppStorage = {
     const index = users.findIndex(existing => existing.email.toLowerCase().trim() === normalized);
     const upserted: RegisteredUser = {
       ...user,
+      id: (user as any).id || (index >= 0 ? users[index].id : generateId()),
       email: normalized,
       provider: user.provider,
     };
@@ -506,7 +539,17 @@ export const AppStorage = {
         await AsyncStorage.setItem(KEYS.FEED_POSTS, JSON.stringify(INITIAL_FEED_POSTS));
         return INITIAL_FEED_POSTS;
       }
-      return JSON.parse(data);
+      const parsed = JSON.parse(data) as FeedPost[];
+      let changed = false;
+      const normalized = parsed.map(p => {
+        if (p.createdAt) return p;
+        changed = true;
+        return { ...p, createdAt: Date.now() };
+      });
+      if (changed) {
+        await AsyncStorage.setItem(KEYS.FEED_POSTS, JSON.stringify(normalized));
+      }
+      return normalized;
     } catch {
       return INITIAL_FEED_POSTS;
     }
@@ -519,6 +562,7 @@ export const AppStorage = {
         ...post,
         id: `post-${Date.now()}`,
         date: 'Agora mesmo',
+        createdAt: Date.now(),
         likes: 0,
       };
       const updated = [newPost, ...current];

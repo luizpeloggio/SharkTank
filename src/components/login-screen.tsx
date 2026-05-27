@@ -629,6 +629,7 @@ export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
         }
 
         const session: UserSession = {
+          id: foundUser.id,
           email: lowerEmail,
           name: foundUser.name,
           username: foundUser.username,
@@ -670,6 +671,7 @@ export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
       try {
         const normalizedEmail = email.toLowerCase().trim();
         const registerResult = await AppStorage.registerEmailUser({
+          id: 'temp',
           email: normalizedEmail,
           password,
           name: name.trim(),
@@ -685,6 +687,7 @@ export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
         }
 
         const session: UserSession = {
+          id: 'temp',
           email: normalizedEmail,
           name: name.trim(),
           username: username.trim(),
@@ -692,9 +695,10 @@ export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
           avatar: wantsAvatar ? avatar : undefined,
         };
 
-        await AppStorage.setSession(session);
+        const saved = await AppStorage.findUserByEmail(normalizedEmail);
+        await AppStorage.setSession({ ...session, id: saved?.id || session.id });
         setIsLoading(false);
-        onLoginSuccess(session);
+        onLoginSuccess({ ...session, id: saved?.id || session.id });
       } catch (err) {
         setIsLoading(false);
         setErrorMessage('Erro ao cadastrar. Tente novamente.');
@@ -724,6 +728,7 @@ export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
     }
 
     const session: UserSession = {
+      id: 'temp',
       email: emailFromGoogle,
       name: profile.name ?? emailFromGoogle.split('@')[0],
       username: emailFromGoogle.split('@')[0],
@@ -731,7 +736,8 @@ export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
       avatar: profile.picture ?? profile.photo ?? undefined,
     };
 
-    await AppStorage.upsertSocialUser({
+    const upserted = await AppStorage.upsertSocialUser({
+      id: 'temp',
       email: session.email,
       name: session.name,
       username: session.username,
@@ -739,8 +745,8 @@ export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
       avatar: session.avatar,
       provider: 'google',
     });
-    await AppStorage.setSession(session);
-    onLoginSuccess(session);
+    await AppStorage.setSession({ ...session, id: upserted.id });
+    onLoginSuccess({ ...session, id: upserted.id });
   }, [onLoginSuccess]);
 
   const handleGoogleLogin = async () => {
@@ -869,12 +875,14 @@ export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
     setTimeout(async () => {
       try {
         const session: UserSession = {
+          id: 'temp',
           email: email.toLowerCase().trim() || 'apple-user@icloud.com',
           name: name.trim() || 'Usuário Apple',
           role: 'estudante',
         };
 
-        await AppStorage.upsertSocialUser({
+        const upserted = await AppStorage.upsertSocialUser({
+          id: 'temp',
           email: session.email,
           name: session.name,
           username: session.username,
@@ -882,9 +890,9 @@ export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
           avatar: session.avatar,
           provider: 'apple',
         });
-        await AppStorage.setSession(session);
+        await AppStorage.setSession({ ...session, id: upserted.id });
         setIsLoading(false);
-        onLoginSuccess(session);
+        onLoginSuccess({ ...session, id: upserted.id });
       } catch {
         setIsLoading(false);
         setErrorMessage('Falha ao conectar com Apple.');

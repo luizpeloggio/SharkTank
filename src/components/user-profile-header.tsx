@@ -1,8 +1,9 @@
 import React, { useState, useContext } from 'react';
 import { View, Image, Text, StyleSheet, Platform, Pressable, Modal, Alert, ScrollView } from 'react-native';
-import { AuthContext } from '@/app/_layout';
+import { AuthContext } from '@/contexts/auth-context';
 import { useTheme } from '@/hooks/use-theme';
 import { useColorScheme, setThemePreference } from '@/hooks/use-color-scheme';
+import { useDrawer } from '@/contexts/drawer-context';
 
 const DayNightSwitch = ({ value, onValueChange }: { value: boolean; onValueChange: (v: boolean) => void }) => {
   if (Platform.OS === 'web') {
@@ -145,6 +146,7 @@ export function UserProfileHeader({ onMenuPress }: { onMenuPress?: () => void })
   const { session, logout } = useContext(AuthContext);
   const colorScheme = useColorScheme();
   const theme = useTheme();
+  const drawer = useDrawer();
   
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
@@ -214,21 +216,22 @@ export function UserProfileHeader({ onMenuPress }: { onMenuPress?: () => void })
   return (
     <View style={styles.profileHeaderContainer}>
       <View style={styles.headerLeftActions}>
-        {!!onMenuPress && (
-          <Pressable
-            onPress={onMenuPress}
-            style={({ pressed }) => [
-              styles.menuOpenTouchTarget,
-              { backgroundColor: theme.backgroundElement, borderColor: theme.border },
-              pressed && { opacity: 0.7 },
-            ]}>
-            <Image
-              source={require('@/assets/images/menu-aberto.png')}
-              style={[styles.menuOpenImage, { tintColor: theme.text }]}
-              resizeMode="contain"
-            />
-          </Pressable>
-        )}
+        <Pressable
+          onPress={() => {
+            if (onMenuPress) onMenuPress();
+            else drawer.open();
+          }}
+          style={({ pressed }) => [
+            styles.menuOpenTouchTarget,
+            { backgroundColor: theme.backgroundElement, borderColor: theme.border },
+            pressed && { opacity: 0.7 },
+          ]}>
+          <Image
+            source={require('@/assets/images/menu-aberto.png')}
+            style={[styles.menuOpenImage, { tintColor: theme.text }]}
+            resizeMode="contain"
+          />
+        </Pressable>
       </View>
 
       <View style={styles.headerRightActions}>

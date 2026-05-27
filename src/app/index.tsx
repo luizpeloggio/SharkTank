@@ -4,6 +4,7 @@ import { UserProfileHeader } from '@/components/user-profile-header';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { AppStorage, FeedPost, UserRole } from '@/services/storage';
+import { CompanyRepository } from '@/services/company-repository';
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
@@ -73,7 +74,6 @@ export default function FeedScreen() {
   const [selectedFilter, setSelectedFilter] = useState<'todos' | 'vaga' | 'noticia'>('todos');
   const [isPostModalVisible, setIsPostModalVisible] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   // Form States for New Post
   const [newTitle, setNewTitle] = useState<string>('');
@@ -107,14 +107,35 @@ export default function FeedScreen() {
 
   const loadData = async () => {
     setIsLoading(true);
-    const storedPosts = await AppStorage.getFeedPosts();
+    const [storedPosts, companyPosts, companies] = await Promise.all([
+      AppStorage.getFeedPosts(),
+      CompanyRepository.listCompanyPosts(),
+      CompanyRepository.listCompanies(),
+    ]);
     const role = await AppStorage.getRole();
-    setPosts(storedPosts);
+    const companiesById = Object.fromEntries(companies.map(c => [c.id, { name: c.name, avatar: c.avatar }]));
+    const companyFeed: FeedPost[] = companyPosts.map(p => ({
+      id: `company-post:${p.id}`,
+      title: p.title,
+      content: p.content,
+      author: companiesById[p.companyId]?.name || 'Empresa',
+      authorAvatar: companiesById[p.companyId]?.avatar,
+      category: p.category,
+      tag: p.category === 'vaga' ? '#VAGA' : p.category === 'evento' ? '#EVENTO' : '#NOTÍCIA',
+      date: 'Agora mesmo',
+      createdAt: p.createdAt,
+      companyId: p.companyId,
+      likes: 0,
+    }));
+
+    const merged = [...companyFeed, ...storedPosts].sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0));
+    setPosts(merged);
     setUserRole(role);
     setIsLoading(false);
   };
 
   const handleLike = async (postId: string) => {
+    if (postId.startsWith('company-post:')) return;
     const updated = await AppStorage.toggleLikePost(postId);
     setPosts(updated);
   };
@@ -216,10 +237,21 @@ export default function FeedScreen() {
     }
   };
 
+  const renderAuthorAvatar = (item: FeedPost) => {
+    if (item.authorAvatar && (item.authorAvatar.startsWith('http') || item.authorAvatar.startsWith('file') || item.authorAvatar.startsWith('data:image'))) {
+      return <Image source={{ uri: item.authorAvatar }} style={styles.authorAvatarImage} />;
+    }
+    return (
+      <ThemedText type="smallBold" style={{ color: '#FFF' }}>
+        {item.author.charAt(0).toUpperCase()}
+      </ThemedText>
+    );
+  };
+
   return (
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
-        <UserProfileHeader onMenuPress={() => setIsMenuOpen(true)} />
+        <UserProfileHeader />
         
         {/* HEADER SECTION */}
         <View style={styles.header}>
@@ -343,21 +375,24 @@ export default function FeedScreen() {
                     <View style={[styles.postCard, { backgroundColor: theme.backgroundElement, borderColor: theme.border, borderWidth: 1 }]}>
                       {/* Card Header */}
                       <View style={styles.cardHeader}>
-                        <View style={styles.authorSection}>
+                        <Pressable
+                          style={styles.authorSection}
+                          onPress={() => {
+                            if (item.companyId) router.push(`/company/${item.companyId}`);
+                          }}
+                        >
                           <View style={[styles.authorBadge, { backgroundColor: theme.primary }]}>
-                            <ThemedText type="smallBold" style={{ color: '#FFF' }}>
-                              {item.author.charAt(0).toUpperCase()}
-                            </ThemedText>
+                            {renderAuthorAvatar(item)}
                           </View>
                           <View>
                             <ThemedText type="smallBold" style={[styles.authorName, { color: theme.text }]}>
                               {item.author}
                             </ThemedText>
                             <ThemedText type="code" style={[styles.postDate, { color: theme.textSecondary }]}>
-                              {item.date}
+                              {item.companyId ? 'Perfil da empresa' : item.date}
                             </ThemedText>
                           </View>
-                        </View>
+                        </Pressable>
                         
                         {/* Category Tag */}
                         <View style={[
@@ -391,9 +426,15 @@ export default function FeedScreen() {
                           onPress={() => handleLike(item.id)}
                         >
                           <ThemedText style={styles.likeEmoji}>🔥</ThemedText>
-                          <ThemedText type="code" style={[styles.likeCount, { color: theme.textSecondary }]}>
-                            {item.likes} curtidas
-                          </ThemedText>
+                          {item.companyId ? (
+                            <ThemedText type="code" style={[styles.likeCount, { color: theme.textSecondary }]}>
+                              Ver perfil da empresa
+                            </ThemedText>
+                          ) : (
+                            <ThemedText type="code" style={[styles.likeCount, { color: theme.textSecondary }]}>
+                              {item.likes} curtidas
+                            </ThemedText>
+                          )}
                         </Pressable>
 
                         {/* Apply Recruitment Link */}
@@ -842,41 +883,6 @@ export default function FeedScreen() {
           </View>
         </Modal>
 
-        {/* ================= HAMBURGER MENU ================= */}
-        <Modal
-          animationType="fade"
-          transparent={true}
-          visible={isMenuOpen}
-          onRequestClose={() => setIsMenuOpen(false)}
-        >
-          <Pressable style={styles.menuOverlay} onPress={() => setIsMenuOpen(false)}>
-            <Pressable
-              style={[
-                styles.menuCard,
-                { backgroundColor: theme.backgroundElement, borderColor: theme.border, borderWidth: 1 },
-              ]}
-              onPress={(e) => e.stopPropagation()}
-            >
-              <ThemedText type="smallBold" style={{ color: theme.text, marginBottom: Spacing.two }}>
-                Menu
-              </ThemedText>
-
-              <Pressable style={[styles.menuItem, { borderBottomColor: theme.border }]} onPress={() => { setIsMenuOpen(false); router.push('/profile'); }}>
-                <ThemedText type="smallBold" style={{ color: theme.text }}>Perfil</ThemedText>
-              </Pressable>
-              <Pressable style={[styles.menuItem, { borderBottomColor: theme.border }]} onPress={() => { setIsMenuOpen(false); router.push('/guia'); }}>
-                <ThemedText type="smallBold" style={{ color: theme.text }}>Guia</ThemedText>
-              </Pressable>
-              <Pressable style={[styles.menuItem, { borderBottomColor: theme.border }]} onPress={() => { setIsMenuOpen(false); router.push('/vitrine'); }}>
-                <ThemedText type="smallBold" style={{ color: theme.text }}>Vitrine</ThemedText>
-              </Pressable>
-              <Pressable style={[styles.menuItem, { borderBottomColor: theme.border }]} onPress={() => { setIsMenuOpen(false); router.push('/sharktank'); }}>
-                <ThemedText type="smallBold" style={{ color: theme.text }}>Shark Tank</ThemedText>
-              </Pressable>
-            </Pressable>
-          </Pressable>
-        </Modal>
-
       </SafeAreaView>
     </ThemedView>
   );
@@ -899,23 +905,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: Spacing.two,
     marginTop: Spacing.one,
-  },
-  menuOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.35)',
-    justifyContent: 'flex-start',
-    alignItems: 'flex-start',
-    paddingTop: 90,
-    paddingLeft: Spacing.three,
-  },
-  menuCard: {
-    width: 220,
-    borderRadius: 16,
-    padding: Spacing.three,
-  },
-  menuItem: {
-    paddingVertical: Spacing.two,
-    borderBottomWidth: 1,
   },
   headerTitle: {
     fontSize: 28,
@@ -985,6 +974,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#003366',
     justifyContent: 'center',
     alignItems: 'center',
+    overflow: 'hidden',
+  },
+  authorAvatarImage: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
   },
   authorName: {
     color: '#FFF',

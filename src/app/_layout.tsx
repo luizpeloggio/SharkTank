@@ -1,5 +1,6 @@
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
+import { Stack } from 'expo-router';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   ActivityIndicator,
@@ -12,23 +13,12 @@ import {
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
-import AppTabs from '@/components/app-tabs';
 import { LoginScreen } from '@/components/login-screen';
 import { AppStorage, UserSession } from '@/services/storage';
-
-export const AuthContext = createContext<{
-  session: UserSession | null;
-  login: (session: UserSession) => void;
-  logout: () => void;
-  updateSession: (session: UserSession) => Promise<void>;
-  isLoading: boolean;
-}>({
-  session: null,
-  login: () => {},
-  logout: () => {},
-  updateSession: async () => {},
-  isLoading: true,
-});
+import { CompanyProvider } from '@/contexts/company-context';
+import { AuthContext } from '@/contexts/auth-context';
+import { DrawerProvider } from '@/contexts/drawer-context';
+import { AppDrawer } from '@/components/app-drawer';
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
@@ -69,7 +59,19 @@ export default function TabLayout() {
     <AuthContext.Provider value={{ session, login, logout, updateSession, isLoading }}>
       <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
         <AnimatedSplashOverlay />
-        {session ? <AppTabs /> : <LoginScreen onLoginSuccess={login} />}
+        {session ? (
+          <CompanyProvider>
+            <DrawerProvider>
+              <Stack screenOptions={{ headerShown: false }}>
+                <Stack.Screen name="(tabs)" />
+                <Stack.Screen name="company/index" />
+              </Stack>
+              <AppDrawer />
+            </DrawerProvider>
+          </CompanyProvider>
+        ) : (
+          <LoginScreen onLoginSuccess={login} />
+        )}
       </ThemeProvider>
     </AuthContext.Provider>
   );
