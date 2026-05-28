@@ -15,14 +15,15 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
-import { useLocalSearchParams } from 'expo-router';
-import { AppStorage } from '@/services/storage';
+import { router, useLocalSearchParams } from 'expo-router';
+import { AppStorage, INITIAL_TRAIL_STEPS } from '@/services/storage';
 import type { EarnedAchievement } from '@/services/storage';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing, MaxContentWidth } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { AuthContext } from '@/contexts/auth-context';
+import { useCompany } from '@/contexts/company-context';
 import { UserProfileHeader } from '@/components/user-profile-header';
 
 const PIXEL_AVATARS: { [key: string]: any } = {
@@ -104,14 +105,13 @@ function StrengthIndicator({ text }: { text: string }) {
 export default function ProfileScreen() {
   const theme = useTheme();
   const params = useLocalSearchParams<{ edit?: string }>();
-  const { session, updateSession } = useContext(AuthContext);
+  const { session, updateSession, logout } = useContext(AuthContext);
+  const { companyId, company, membership } = useCompany();
 
   // Stats States
-  const [completedStepsCount, setCompletedStepsCount] = useState<number>(0);
-  const [votesCastCount, setVotesCastCount] = useState<number>(0);
   const [completedStepsDisplay, setCompletedStepsDisplay] = useState<number>(0);
-  const [votesCastDisplay, setVotesCastDisplay] = useState<number>(0);
   const [achievements, setAchievements] = useState<EarnedAchievement[]>([]);
+  const [completedSteps, setCompletedSteps] = useState<number[]>([]);
   const [isAvatarModalVisible, setIsAvatarModalVisible] = useState(false);
   const [selectedAvatar, setSelectedAvatar] = useState(session?.avatar || '');
 
@@ -339,24 +339,61 @@ export default function ProfileScreen() {
 
   const loadData = async () => {
     const progress = await AppStorage.getTrailProgress();
-    const votes = await AppStorage.getUserVotes();
     const syncedAchievements = session?.id
       ? await AppStorage.syncUserAchievements(session.id, progress)
       : [];
     
     const targetSteps = progress.length;
-    const targetVotes = votes.length;
     
-    setCompletedStepsCount(targetSteps);
-    setVotesCastCount(targetVotes);
     setAchievements(syncedAchievements);
+    setCompletedSteps(progress);
     
     // Animate display counters
     animateCount(targetSteps, setCompletedStepsDisplay);
-    animateCount(targetVotes, setVotesCastDisplay);
   };
 
   const currentRole = session?.role || 'estudante';
+  const totalSteps = INITIAL_TRAIL_STEPS.length;
+  const progressPercent = totalSteps > 0 ? Math.min(100, (completedSteps.length / totalSteps) * 100) : 0;
+  const nextStep = INITIAL_TRAIL_STEPS.find(step => !completedSteps.includes(step.id));
+  const profileName = session?.name || (currentRole === 'admin' ? 'Coordenadora Admin' : currentRole === 'lider' ? 'Presidente Computação EJ' : 'Estudante UERN');
+  const profileInitials = profileName
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map(part => part[0]?.toUpperCase() ?? '')
+    .join('') || 'EU';
+  const roleLabel = currentRole === 'lider' ? 'Presidente' : currentRole === 'admin' ? 'Administradora' : 'Membro';
+  const companyName = company?.name || (currentRole === 'lider' ? 'Empresa Jr' : 'Minha EJ');
+  const memberSince = membership?.createdAt
+    ? new Date(membership.createdAt).toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' })
+    : 'jan/2023';
+  const featuredAchievements = achievements.slice(0, 6);
+  const latestAchievement = achievements[achievements.length - 1];
+  const latestCompletedStep = completedSteps.length
+    ? INITIAL_TRAIL_STEPS.find(step => step.id === completedSteps[completedSteps.length - 1])
+    : null;
+  const recentActivities = [
+    latestCompletedStep
+      ? {
+          icon: '✓',
+          title: `Concluiu a etapa ${latestCompletedStep.title} na jornada`,
+          time: 'há 3 dias',
+        }
+      : null,
+    latestAchievement
+      ? {
+          icon: latestAchievement.icon,
+          title: `Ganhou o badge ${latestAchievement.name}`,
+          time: 'há 2 semanas',
+        }
+      : null,
+    {
+      icon: '✎',
+      title: company ? `Publicou uma atualização no feed da ${company.name}` : 'Explorou oportunidades no feed do ecossistema',
+      time: 'há 5 dias',
+    },
+  ].filter((item): item is { icon: string; title: string; time: string } => Boolean(item));
 
   const handleResetApp = async () => {
     // Reset all Storage variables
@@ -378,140 +415,135 @@ export default function ProfileScreen() {
         <UserProfileHeader />
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
           
-          {/* HEADER */}
-          <View style={styles.header}>
-            <ThemedText type="smallBold" style={{ color: theme.primary }}>
-              GESTÃO DE PERFIS
-            </ThemedText>
-            <ThemedText type="subtitle" style={[styles.headerTitle, { color: theme.text }]}>
-              Perfil & Configurações
-            </ThemedText>
-          </View>
+          <View style={[styles.profileShell, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
+            <View style={[styles.profileCover, { backgroundColor: theme.background, borderBottomColor: theme.border }]} />
+            <Pressable style={styles.profileAvatarButton} onPress={() => setIsAvatarModalVisible(true)}>
+              <View style={[styles.profileAvatarLarge, { backgroundColor: theme.backgroundSelected, borderColor: theme.backgroundElement }]}>
+                {session?.avatar ? renderAvatarHelper(session.avatar, currentRole, 84) : (
+                  <ThemedText style={[styles.profileAvatarInitials, { color: theme.text }]}>{profileInitials}</ThemedText>
+                )}
+              </View>
+            </Pressable>
 
-          {/* ACTIVE USER SUMMARY CARD */}
-          <View style={[styles.profileCard, { backgroundColor: theme.backgroundElement, borderColor: theme.border, borderWidth: 1 }]}>
-            <View style={styles.profileHeader}>
-              <Pressable 
-                style={styles.avatarPressable} 
-                onPress={() => setIsAvatarModalVisible(true)}
-              >
-                <View style={[styles.avatarCircle, { backgroundColor: theme.background, borderColor: theme.primary }]}>
-                  {renderAvatarHelper(session?.avatar, currentRole, 64)}
-                  <View style={[styles.editBadge, { backgroundColor: theme.primary, borderColor: theme.border }]}>
-                    <ThemedText style={{ fontSize: 10, color: '#FFF' }}>✏️</ThemedText>
-                  </View>
+            <View style={styles.profileBody}>
+              <View style={styles.profileNameRow}>
+                <View style={{ flex: 1 }}>
+                  <ThemedText type="subtitle" style={[styles.profileName, { color: theme.text }]} numberOfLines={1}>
+                    {profileName}
+                  </ThemedText>
+                  <ThemedText type="small" style={[styles.profileSubtitle, { color: theme.textSecondary }]}>
+                    Ciência da Computação · 5º período
+                  </ThemedText>
                 </View>
-              </Pressable>
-              <View style={{ flex: 1 }}>
-                <ThemedText type="subtitle" style={[styles.profileName, { color: theme.text }]} numberOfLines={1}>
-                  {session?.name || (currentRole === 'admin' ? 'Coordenadora Admin' : currentRole === 'lider' ? 'Presidente Computação EJ' : 'Estudante UERN')}
-                </ThemedText>
-                <ThemedText type="small" style={{ color: theme.primary, fontWeight: 'bold', marginTop: 1 }}>
-                  @{session?.username || 'usuario'}
-                </ThemedText>
-                <ThemedText type="small" style={{ color: theme.textSecondary, marginTop: 2, marginBottom: 4 }}>
-                  {session?.email || 'usuario@uern.br'}
-                </ThemedText>
-                <View style={styles.badgeRow}>
-                  <View style={[
-                    styles.roleBadge,
-                    { backgroundColor: theme.backgroundSelected }
-                  ]}>
-                    <ThemedText type="code" style={{ 
-                      color: theme.primary,
-                      fontWeight: 'bold',
-                      fontSize: 10
-                    }}>
-                      {currentRole.toUpperCase()}
-                    </ThemedText>
-                  </View>
-                  <View style={[styles.seloBadge, { backgroundColor: theme.backgroundSelected }]}>
-                    <ThemedText type="code" style={[styles.seloText, { color: theme.primary }]}>OFICIAL UERN</ThemedText>
-                  </View>
+                <Pressable
+                  onPress={() => setIsEditSectionOpen(value => !value)}
+                  style={({ pressed }) => [
+                    styles.editPill,
+                    { borderColor: theme.border, backgroundColor: theme.backgroundElement },
+                    pressed && { opacity: 0.75 },
+                  ]}
+                >
+                  <ThemedText type="smallBold" style={{ color: theme.text }}>Editar</ThemedText>
+                </Pressable>
+              </View>
+
+              <View style={styles.companyAffiliation}>
+                <View style={[styles.affiliationIcon, { backgroundColor: theme.background, borderColor: theme.border }]}>
+                  <ThemedText style={{ color: theme.text, fontSize: 12, fontWeight: '800' }}>EJ</ThemedText>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <ThemedText type="smallBold" style={{ color: theme.text, fontSize: 15 }}>
+                    {companyName} · {roleLabel}
+                  </ThemedText>
+                  <ThemedText type="small" style={{ color: theme.textSecondary }}>
+                    Membro desde {memberSince}
+                  </ThemedText>
                 </View>
               </View>
-            </View>
 
-            {/* Quick stats dashboard inside card */}
-            <View style={[styles.statsRow, { backgroundColor: theme.background, borderColor: theme.border, borderWidth: 1 }]}>
-              <View style={styles.statCol}>
-                <ThemedText type="subtitle" style={[styles.statVal, { color: theme.text }]}>{completedStepsDisplay}/5</ThemedText>
-                <ThemedText type="code" style={[styles.statLbl, { color: theme.textSecondary }]}>TRILHA EJ</ThemedText>
-              </View>
-              <View style={[styles.divider, { backgroundColor: theme.border }]} />
-              <View style={styles.statCol}>
-                <ThemedText type="subtitle" style={[styles.statVal, { color: theme.text }]}>{votesCastDisplay}</ThemedText>
-                <ThemedText type="code" style={[styles.statLbl, { color: theme.textSecondary }]}>VOTOS CAST</ThemedText>
-              </View>
-              <View style={[styles.divider, { backgroundColor: theme.border }]} />
-              <View style={styles.statCol}>
-                <ThemedText type="subtitle" style={[styles.statVal, { color: theme.text }]}>
-                  {currentRole === 'admin' ? 'A+' : currentRole === 'lider' ? 'A' : 'B'}
+              <View style={[styles.journeyPanel, { backgroundColor: theme.background, borderColor: theme.border }]}>
+                <View style={styles.journeyHeader}>
+                  <ThemedText type="smallBold" style={{ color: theme.text, fontSize: 15 }}>Jornada de fundação</ThemedText>
+                  <ThemedText type="smallBold" style={{ color: theme.textSecondary }}>
+                    {completedStepsDisplay} / {totalSteps} etapas
+                  </ThemedText>
+                </View>
+                <View style={[styles.progressTrack, { backgroundColor: theme.border }]}>
+                  <View style={[styles.progressFill, { width: `${progressPercent}%`, backgroundColor: theme.primary }]} />
+                </View>
+                <ThemedText type="small" style={{ color: theme.textSecondary, marginTop: Spacing.two }}>
+                  Próxima etapa: {nextStep?.title || 'Jornada concluída'}
                 </ThemedText>
-                <ThemedText type="code" style={[styles.statLbl, { color: theme.textSecondary }]}>NÍVEL PERM</ThemedText>
               </View>
-            </View>
-          </View>
 
+              <View style={[styles.profileDivider, { backgroundColor: theme.border }]} />
 
-          <View style={styles.sectionContainer}>
-            <View style={styles.sectionHeaderRow}>
-              <View>
-                <ThemedText type="smallBold" style={[styles.sectionTitle, { color: theme.text }]}>
-                  Conquistas
-                </ThemedText>
-                <ThemedText type="small" style={[styles.sectionSub, { color: theme.textSecondary }]}>
-                  Badges de progresso, conteúdo e networking do usuário.
-                </ThemedText>
+              <View style={styles.mockSection}>
+                <ThemedText type="code" style={[styles.mockSectionTitle, { color: theme.textSecondary }]}>CONQUISTAS</ThemedText>
+                {featuredAchievements.length > 0 ? (
+                  <View style={styles.achievementPills}>
+                    {featuredAchievements.map((badge) => (
+                      <View key={badge.id} style={[styles.achievementPill, { backgroundColor: theme.background, borderColor: theme.border }]}>
+                        <ThemedText style={{ fontSize: 13 }}>{badge.icon}</ThemedText>
+                        <ThemedText type="smallBold" style={{ color: theme.text }}>{badge.name}</ThemedText>
+                      </View>
+                    ))}
+                  </View>
+                ) : (
+                  <ThemedText type="small" style={{ color: theme.textSecondary }}>
+                    Complete etapas, publique e interaja para ganhar badges.
+                  </ThemedText>
+                )}
               </View>
-              <View style={[styles.achievementCounter, { backgroundColor: theme.backgroundSelected, borderColor: theme.border }]}>
-                <ThemedText type="code" style={{ color: theme.primary, fontWeight: 'bold' }}>
-                  {achievements.length}
-                </ThemedText>
-              </View>
-            </View>
 
-            {achievements.length === 0 ? (
-              <View style={[styles.emptyAchievements, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
-                <ThemedText style={styles.emptyAchievementIcon}>🏁</ThemedText>
-                <ThemedText type="smallBold" style={{ color: theme.text }}>
-                  Nenhuma conquista ainda
-                </ThemedText>
-                <ThemedText type="small" style={{ color: theme.textSecondary, textAlign: 'center' }}>
-                  Complete etapas, publique e interaja para ganhar suas primeiras badges.
-                </ThemedText>
+              <View style={[styles.profileDivider, { backgroundColor: theme.border }]} />
+
+              <View style={styles.mockSection}>
+                <ThemedText type="code" style={[styles.mockSectionTitle, { color: theme.textSecondary }]}>ATIVIDADE RECENTE</ThemedText>
+                <View style={styles.activityList}>
+                  {recentActivities.map((activity, index) => (
+                    <View key={`${activity.title}-${index}`} style={styles.activityItem}>
+                      <View style={[styles.activityIcon, { backgroundColor: theme.background }]}>
+                        <ThemedText style={{ color: theme.text, fontSize: 14 }}>{activity.icon}</ThemedText>
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <ThemedText type="small" style={[styles.activityTitle, { color: theme.text }]}>{activity.title}</ThemedText>
+                        <ThemedText type="small" style={{ color: theme.textSecondary }}>{activity.time}</ThemedText>
+                      </View>
+                    </View>
+                  ))}
+                </View>
               </View>
-            ) : (
-              <View style={styles.achievementsGrid}>
-                {achievements.map((badge) => (
-                  <View
-                    key={badge.id}
-                    style={[
-                      styles.achievementCard,
-                      {
-                        backgroundColor: badge.backgroundColor,
-                        borderColor: badge.color,
-                      },
-                    ]}
+
+              <View style={[styles.profileDivider, { backgroundColor: theme.border }]} />
+
+              <View style={styles.mockSection}>
+                <ThemedText type="code" style={[styles.mockSectionTitle, { color: theme.textSecondary }]}>CONTA</ThemedText>
+                <View style={styles.accountList}>
+                  <Pressable style={({ pressed }) => [styles.accountRow, { borderBottomColor: theme.border }, pressed && { opacity: 0.7 }]}>
+                    <ThemedText style={[styles.accountIcon, { color: theme.textSecondary }]}>N</ThemedText>
+                    <ThemedText type="small" style={[styles.accountLabel, { color: theme.text }]}>Notificações</ThemedText>
+                    <ThemedText style={{ color: theme.textSecondary }}>›</ThemedText>
+                  </Pressable>
+                  <Pressable
+                    onPress={() => router.push(companyId ? `/company/${companyId}` : '/company')}
+                    style={({ pressed }) => [styles.accountRow, { borderBottomColor: theme.border }, pressed && { opacity: 0.7 }]}
                   >
-                    <View style={[styles.achievementIconWrap, { backgroundColor: badge.color }]}>
-                      <ThemedText style={styles.achievementIcon}>{badge.icon}</ThemedText>
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <ThemedText type="smallBold" style={[styles.achievementName, { color: theme.text }]}>
-                        {badge.name}
-                      </ThemedText>
-                      <ThemedText type="small" style={[styles.achievementDesc, { color: theme.textSecondary }]}>
-                        {badge.description}
-                      </ThemedText>
-                      <ThemedText type="code" style={[styles.achievementId, { color: badge.color }]}>
-                        {badge.category.toUpperCase()} · #{badge.id.toUpperCase()}
-                      </ThemedText>
-                    </View>
-                  </View>
-                ))}
+                    <ThemedText style={[styles.accountIcon, { color: theme.textSecondary }]}>EJ</ThemedText>
+                    <ThemedText type="small" style={[styles.accountLabel, { color: theme.text }]}>Minha EJ</ThemedText>
+                    <ThemedText style={{ color: theme.textSecondary }}>›</ThemedText>
+                  </Pressable>
+                  <Pressable
+                    onPress={logout}
+                    style={({ pressed }) => [styles.accountRow, { borderBottomColor: theme.border }, pressed && { opacity: 0.7 }]}
+                  >
+                    <ThemedText style={[styles.accountIcon, { color: theme.textSecondary }]}>S</ThemedText>
+                    <ThemedText type="small" style={[styles.accountLabel, { color: theme.text }]}>Sair</ThemedText>
+                    <ThemedText style={{ color: theme.textSecondary }}>›</ThemedText>
+                  </Pressable>
+                </View>
               </View>
-            )}
+            </View>
           </View>
 
 
@@ -798,6 +830,157 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: '800',
     lineHeight: 32,
+  },
+  profileShell: {
+    borderRadius: 18,
+    borderWidth: 1,
+    overflow: 'hidden',
+    marginTop: Spacing.two,
+  },
+  profileCover: {
+    height: 150,
+    borderBottomWidth: 1,
+  },
+  profileAvatarButton: {
+    marginTop: -64,
+    marginLeft: Spacing.four,
+    width: 112,
+    height: 112,
+  },
+  profileAvatarLarge: {
+    width: 112,
+    height: 112,
+    borderRadius: 56,
+    borderWidth: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  profileAvatarInitials: {
+    fontSize: 30,
+    fontWeight: '800',
+  },
+  profileBody: {
+    paddingHorizontal: Spacing.four,
+    paddingBottom: Spacing.four,
+  },
+  profileNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.three,
+    marginTop: Spacing.two,
+  },
+  profileSubtitle: {
+    fontSize: 15,
+    marginTop: 2,
+  },
+  editPill: {
+    borderWidth: 1.5,
+    borderRadius: 999,
+    paddingHorizontal: Spacing.four,
+    paddingVertical: 10,
+  },
+  companyAffiliation: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
+    marginTop: Spacing.three,
+  },
+  affiliationIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  journeyPanel: {
+    borderWidth: 1,
+    borderRadius: 14,
+    padding: Spacing.three,
+    marginTop: Spacing.three,
+  },
+  journeyHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: Spacing.two,
+    marginBottom: Spacing.two,
+  },
+  progressTrack: {
+    height: 10,
+    borderRadius: 999,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    borderRadius: 999,
+  },
+  profileDivider: {
+    height: 1,
+    width: '100%',
+    marginVertical: Spacing.four,
+    opacity: 0.75,
+  },
+  mockSection: {
+    gap: Spacing.two,
+  },
+  mockSectionTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  achievementPills: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.two,
+  },
+  achievementPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: 10,
+  },
+  activityList: {
+    gap: Spacing.three,
+  },
+  activityItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.three,
+  },
+  activityIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  activityTitle: {
+    fontSize: 16,
+    lineHeight: 21,
+  },
+  accountList: {
+    marginTop: Spacing.two,
+  },
+  accountRow: {
+    minHeight: 64,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderBottomWidth: 1,
+    gap: Spacing.three,
+  },
+  accountIcon: {
+    width: 20,
+    fontSize: 15,
+    fontWeight: '800',
+    textAlign: 'center',
+  },
+  accountLabel: {
+    flex: 1,
+    fontSize: 17,
   },
   profileCard: {
     borderRadius: 24,
