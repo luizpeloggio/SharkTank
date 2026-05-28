@@ -256,7 +256,7 @@ export default function FeedScreen() {
   const getTagColors = (category: string) => {
     switch (category) {
       case 'vaga':
-        return { bg: 'rgba(168, 85, 247, 0.15)', text: '#A855F7', border: 'rgba(168, 85, 247, 0.3)' }; // Purple
+        return { bg: theme.accentSoft, text: theme.accent, border: theme.accentBorder };
       case 'evento':
         return { bg: 'rgba(34, 197, 94, 0.15)', text: '#22C55E', border: 'rgba(34, 197, 94, 0.3)' };
       case 'noticia':
@@ -1098,12 +1098,12 @@ const styles = StyleSheet.create({
     transform: [{ scale: 0.97 }],
   },
   applyBtn: {
-    backgroundColor: '#A855F7',
+    backgroundColor: '#009FDF',
     paddingHorizontal: Spacing.three,
     paddingVertical: Spacing.one + 2,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#C084FC',
+    borderColor: 'rgba(0, 159, 223, 0.55)',
   },
   applyBtnText: {
     color: '#FFF',

@@ -15,6 +15,9 @@ export const Colors = {
     backgroundSelected: '#E2E8F0', // Slate 200 selection
     textSecondary: '#475569',     // Slate 600 subtext
     primary: '#353C7C',           // Strict brand blue
+    accent: '#009FDF',            // Impact EJ cyan accent
+    accentSoft: 'rgba(0, 159, 223, 0.14)',
+    accentBorder: 'rgba(0, 159, 223, 0.28)',
     border: '#E2E8F0',            // Slate 200 borders
   },
   dark: {
@@ -24,6 +27,9 @@ export const Colors = {
     backgroundSelected: '#202D44', // Card selected state
     textSecondary: '#94A3B8',      // Soft subtext
     primary: '#353C7C',           // Strict brand blue
+    accent: '#009FDF',            // Impact EJ cyan accent
+    accentSoft: 'rgba(0, 159, 223, 0.14)',
+    accentBorder: 'rgba(0, 159, 223, 0.28)',
     border: '#1E293B',             // Slate 800 borders
   },
 } as const;

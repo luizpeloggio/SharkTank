@@ -423,7 +423,7 @@ export const INITIAL_EVENTS: EventItem[] = [
     location: 'Sala Maker',
     description: 'Desafio pratico para transformar servicos de EJs em propostas comerciais prontas para cliente.',
     tag: 'Workshop',
-    accent: '#38BDF8',
+    accent: '#009FDF',
     videoUri: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4',
     posterKey: 'visitor',
     attendees: 186,

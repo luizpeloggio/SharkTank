@@ -443,28 +443,6 @@ export default function VitrineScreen() {
       image: highlightImages.event,
       yearLabel,
     })),
-    ...featuredVideos.map((video, index) => ({
-      id: `h-video-${video.event.id}-${index}`,
-      type: 'video' as const,
-      kicker: 'Vídeos em destaque',
-      title: video.title,
-      subtitle: `${video.event.host} · ${video.event.location}`,
-      icon: '🎬',
-      accent: video.event.accent,
-      image: highlightImages.video,
-      yearLabel,
-    })),
-    ...featuredAchievements.map(ach => ({
-      id: `h-ach-${ach.id}`,
-      type: 'achievement' as const,
-      kicker: 'Conquistas',
-      title: ach.name,
-      subtitle: ach.description,
-      icon: ach.icon,
-      accent: ach.color,
-      image: highlightImages.achievement,
-      yearLabel,
-    })),
     ...latestNews.map(post => ({
       id: `h-news-${post.id}`,
       type: 'news' as const,
@@ -475,7 +453,7 @@ export default function VitrineScreen() {
       image: highlightImages.news,
       yearLabel,
     })),
-  ].slice(0, 14);
+  ].slice(0, 10);
 
   const highlightCardWidth = 270;
   const highlightCardHeight = 330;
@@ -487,6 +465,7 @@ export default function VitrineScreen() {
       border: theme.border,
       borderWidth: 1,
       primary: '#353C7C', // Strict RGB 53 60 124 Brand Color
+      accent: theme.accent,
       text: theme.text,
       textSec: theme.textSecondary,
       accentBg: theme.backgroundSelected,
@@ -973,6 +952,7 @@ const styles = StyleSheet.create({
   },
   highlightEmoji: {
     fontSize: 42,
+    lineHeight: 52,
   },
   highlightPill: {
     paddingHorizontal: 12,

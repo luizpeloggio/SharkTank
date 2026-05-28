@@ -383,7 +383,7 @@ export default function SharkTankScreen() {
                     {/* Result Visual Bar */}
                     <View style={styles.votingBarContainer}>
                       <View style={[styles.barBackground, { backgroundColor: theme.background }]}>
-                        <View style={[styles.barFill, { width: `${pct}%`, backgroundColor: theme.primary }]} />
+                        <View style={[styles.barFill, { width: `${pct}%`, backgroundColor: theme.accent }]} />
                       </View>
                       <ThemedText type="code" style={[styles.votingBarText, { color: theme.textSecondary }]}>
                         {proj.votes} votos ({pct}%)

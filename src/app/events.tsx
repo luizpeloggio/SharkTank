@@ -26,7 +26,7 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const SAMPLE_VIDEO_URI = 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4';
-const EVENT_ACCENTS = ['#38BDF8', '#22C55E', '#F97316', '#A855F7', '#EF4444', '#FACC15'];
+const EVENT_ACCENTS = ['#009FDF', '#22C55E', '#F97316', '#A855F7', '#EF4444', '#FACC15'];
 const DEFAULT_VIDEO_TAGS = ['Ao vivo', 'Novo', 'Workshop', 'Inscricoes'];
 
 function normalizeVideoUrl(value: string) {
@@ -208,7 +208,7 @@ function EventReelCard({
           icon="↗"
           label={isShared ? 'Enviado' : formatCount(item.shares)}
           active={isShared}
-          accent="#38BDF8"
+          accent="#009FDF"
           onPress={onShare}
         />
         <ActionButton
@@ -1005,7 +1005,7 @@ const styles = StyleSheet.create({
     borderBottomColor: 'rgba(255,255,255,0.08)',
   },
   modalKicker: {
-    color: '#38BDF8',
+    color: '#009FDF',
     fontSize: 11,
     fontWeight: '900',
   },
@@ -1177,8 +1177,8 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.22)',
   },
   tagSelectDotActive: {
-    backgroundColor: '#38BDF8',
-    borderColor: '#38BDF8',
+    backgroundColor: '#009FDF',
+    borderColor: '#009FDF',
   },
   tagSelectText: {
     color: '#082F49',
@@ -1258,7 +1258,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     paddingHorizontal: Spacing.three,
     paddingVertical: 12,
-    backgroundColor: '#38BDF8',
+    backgroundColor: '#009FDF',
   },
   saveButtonText: {
     color: '#082F49',
