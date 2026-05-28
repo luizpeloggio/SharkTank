@@ -2,12 +2,13 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { UserProfileHeader } from '@/components/user-profile-header';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
+import { AuthContext } from '@/contexts/auth-context';
 import { useTheme } from '@/hooks/use-theme';
 import { AppStorage, FeedPost, UserRole } from '@/services/storage';
 import { CompanyRepository } from '@/services/company-repository';
 import { router } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useContext, useEffect, useState } from 'react';
 import {
     Alert,
     FlatList,
@@ -68,6 +69,7 @@ export const B2B_SERVICES: B2BService[] = [
 
 export default function FeedScreen() {
   const theme = useTheme();
+  const { session } = useContext(AuthContext);
 
   // Core States
   const [posts, setPosts] = useState<FeedPost[]>([]);
@@ -75,6 +77,7 @@ export default function FeedScreen() {
   const [selectedFilter, setSelectedFilter] = useState<'todos' | 'vaga' | 'noticia' | 'evento'>('todos');
   const [isPostModalVisible, setIsPostModalVisible] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [likedPostIds, setLikedPostIds] = useState<string[]>([]);
 
   // Form States for New Post
   const [newTitle, setNewTitle] = useState<string>('');
@@ -109,7 +112,11 @@ export default function FeedScreen() {
       CompanyRepository.listCompanyPosts(),
       CompanyRepository.listCompanies(),
     ]);
-    const role = await AppStorage.getRole();
+    const [role, reactions] = await Promise.all([
+      AppStorage.getRole(),
+      AppStorage.getFeedReactions(),
+    ]);
+    const currentUserId = session?.id ?? 'guest';
     const companiesById = Object.fromEntries(companies.map(c => [c.id, { name: c.name, avatar: c.avatar }]));
     const companyFeed: FeedPost[] = companyPosts.map(p => ({
       id: `company-post:${p.id}`,
@@ -125,11 +132,19 @@ export default function FeedScreen() {
       likes: 0,
     }));
 
-    const merged = [...companyFeed, ...storedPosts].sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0));
+    const merged = [...companyFeed, ...storedPosts]
+      .map(post => ({
+        ...post,
+        likes: post.likes + (reactions[post.id]?.length ?? 0),
+      }))
+      .sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0));
     setPosts(merged);
+    setLikedPostIds(Object.entries(reactions)
+      .filter(([, userIds]) => userIds.includes(currentUserId))
+      .map(([postId]) => postId));
     setUserRole(role);
     setIsLoading(false);
-  }, []);
+  }, [session?.id]);
 
   useEffect(() => {
     loadData();
@@ -142,8 +157,14 @@ export default function FeedScreen() {
   );
 
   const handleLike = async (postId: string) => {
-    if (postId.startsWith('company-post:')) return;
-    await AppStorage.toggleLikePost(postId);
+    const userId = session?.id ?? 'guest';
+    const wasLiked = likedPostIds.includes(postId);
+    setLikedPostIds(prev => wasLiked ? prev.filter(id => id !== postId) : [...prev, postId]);
+    setPosts(prev => prev.map(post => post.id === postId
+      ? { ...post, likes: Math.max(0, post.likes + (wasLiked ? -1 : 1)) }
+      : post
+    ));
+    await AppStorage.toggleFeedPostLike(postId, userId);
     await loadData();
   };
 
@@ -393,6 +414,7 @@ export default function FeedScreen() {
                 contentContainerStyle={styles.feedListContent}
                 renderItem={({ item }) => {
                   const colors = getTagColors(item.category);
+                  const isLiked = likedPostIds.includes(item.id);
                   
                   return (
                     <View style={[styles.postCard, { backgroundColor: theme.backgroundElement, borderColor: theme.border, borderWidth: 1 }]}>
@@ -404,7 +426,13 @@ export default function FeedScreen() {
                             if (item.companyId) router.push(`/company/${item.companyId}`);
                           }}
                         >
-                          <View style={[styles.authorBadge, { backgroundColor: theme.primary }]}>
+                          <View style={[
+                            styles.authorBadge,
+                            {
+                              backgroundColor: theme.primary,
+                              borderColor: item.companyId ? theme.primary : theme.border,
+                            },
+                          ]}>
                             {renderAuthorAvatar(item)}
                           </View>
                           <View>
@@ -412,7 +440,7 @@ export default function FeedScreen() {
                               {item.author}
                             </ThemedText>
                             <ThemedText type="code" style={[styles.postDate, { color: theme.textSecondary }]}>
-                              {item.companyId ? 'Perfil da empresa' : item.date}
+                              {item.date}
                             </ThemedText>
                           </View>
                         </Pressable>
@@ -445,19 +473,22 @@ export default function FeedScreen() {
                         
                         {/* Likes Action */}
                         <Pressable 
-                          style={styles.likeBtn}
+                          style={({ pressed }) => [
+                            styles.likeBtn,
+                            {
+                              backgroundColor: isLiked ? 'rgba(239, 68, 68, 0.12)' : theme.background,
+                              borderColor: isLiked ? 'rgba(239, 68, 68, 0.28)' : theme.border,
+                            },
+                            pressed && styles.actionPressed,
+                          ]}
                           onPress={() => handleLike(item.id)}
                         >
-                          <ThemedText style={styles.likeEmoji}>🔥</ThemedText>
-                          {item.companyId ? (
-                            <ThemedText type="code" style={[styles.likeCount, { color: theme.textSecondary }]}>
-                              Ver perfil da empresa
-                            </ThemedText>
-                          ) : (
-                            <ThemedText type="code" style={[styles.likeCount, { color: theme.textSecondary }]}>
-                              {item.likes} curtidas
-                            </ThemedText>
-                          )}
+                          <ThemedText style={[styles.likeEmoji, { color: isLiked ? '#EF4444' : theme.textSecondary }]}>
+                            {isLiked ? '♥' : '♡'}
+                          </ThemedText>
+                          <ThemedText type="code" style={[styles.likeCount, { color: isLiked ? '#EF4444' : theme.textSecondary }]}>
+                            {item.likes} curtidas
+                          </ThemedText>
                         </Pressable>
 
                         {/* Apply Recruitment Link */}
@@ -991,18 +1022,19 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
   },
   authorBadge: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     backgroundColor: '#003366',
     justifyContent: 'center',
     alignItems: 'center',
     overflow: 'hidden',
+    borderWidth: 2,
   },
   authorAvatarImage: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
   },
   authorName: {
     color: '#FFF',
@@ -1047,14 +1079,23 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.one,
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.one + 2,
   },
   likeEmoji: {
-    fontSize: 16,
+    fontSize: 18,
+    fontWeight: '900',
   },
   likeCount: {
     color: '#FF9570',
     fontWeight: '600',
     fontSize: 11,
+  },
+  actionPressed: {
+    opacity: 0.72,
+    transform: [{ scale: 0.97 }],
   },
   applyBtn: {
     backgroundColor: '#A855F7',

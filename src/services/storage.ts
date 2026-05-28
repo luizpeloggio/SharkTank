@@ -64,6 +64,42 @@ export interface FeedPost {
   likes: number;
 }
 
+export interface EventVideo {
+  id: string;
+  title: string;
+  url: string;
+  sourceType: 'link' | 'upload';
+  tags?: string[];
+  createdAt: number;
+}
+
+const DEFAULT_EVENT_VIDEO_URI =
+  'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4';
+
+export interface EventItem {
+  id: string;
+  title: string;
+  host: string;
+  date: string;
+  location: string;
+  description: string;
+  tag: string;
+  accent: string;
+  videoUri: string;
+  posterKey: 'rocket' | 'visitor';
+  attendees: number;
+  likes: number;
+  saves: number;
+  shares: number;
+  videos: EventVideo[];
+}
+
+export interface EventReactionState {
+  liked: string[];
+  saved: string[];
+  shared: string[];
+}
+
 export interface SharkProject {
   id: string;
   name: string;
@@ -344,6 +380,60 @@ export const INITIAL_FEED_POSTS: FeedPost[] = [
   }
 ];
 
+export const INITIAL_EVENTS: EventItem[] = [
+  {
+    id: 'enej-2026',
+    title: 'ENEJ RN 2026',
+    host: 'RN Junior',
+    date: '15 Jun - 19:00',
+    location: 'Auditorio Central',
+    description: 'Pitches, mentorias relampago e networking entre empresas juniores do ecossistema UERN.',
+    tag: 'Ao vivo em breve',
+    accent: '#22C55E',
+    videoUri: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
+    posterKey: 'rocket',
+    attendees: 512,
+    likes: 512,
+    saves: 38,
+    shares: 12,
+    videos: [],
+  },
+  {
+    id: 'pitch-night',
+    title: 'Pitch Night UERN',
+    host: 'Impacto EJ',
+    date: '22 Jun - 18:30',
+    location: 'Hub de Inovacao',
+    description: 'Uma noite de apresentacoes curtas para conectar ideias, investidores e times fundadores.',
+    tag: 'Inscricoes abertas',
+    accent: '#F97316',
+    videoUri: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4',
+    posterKey: 'rocket',
+    attendees: 248,
+    likes: 248,
+    saves: 21,
+    shares: 9,
+    videos: [],
+  },
+  {
+    id: 'lab-b2b',
+    title: 'Lab B2B Jr',
+    host: 'UERN Proex',
+    date: '30 Jun - 09:00',
+    location: 'Sala Maker',
+    description: 'Desafio pratico para transformar servicos de EJs em propostas comerciais prontas para cliente.',
+    tag: 'Workshop',
+    accent: '#38BDF8',
+    videoUri: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4',
+    posterKey: 'visitor',
+    attendees: 186,
+    likes: 186,
+    saves: 17,
+    shares: 7,
+    videos: [],
+  },
+];
+
 export const INITIAL_SHARK_PROJECTS: SharkProject[] = [
   {
     id: 'proj-1',
@@ -418,6 +508,9 @@ const KEYS = {
   USERS: '@uern_impactoej_users',
   PASSWORD_RESET_REQUEST: '@uern_impactoej_password_reset_request',
   ACHIEVEMENTS: '@uern_impactoej_achievements',
+  FEED_REACTIONS: '@uern_impactoej_feed_reactions',
+  EVENTS: '@uern_impactoej_events',
+  EVENT_REACTIONS: '@uern_impactoej_event_reactions',
 };
 
 export const AppStorage = {
@@ -854,6 +947,249 @@ export const AppStorage = {
     }
   },
 
+  async getFeedReactions(): Promise<Record<string, string[]>> {
+    try {
+      const data = await AsyncStorage.getItem(KEYS.FEED_REACTIONS);
+      return data ? JSON.parse(data) : {};
+    } catch {
+      return {};
+    }
+  },
+
+  async toggleFeedPostLike(postId: string, userId: string): Promise<Record<string, string[]>> {
+    try {
+      const reactions = await this.getFeedReactions();
+      const current = reactions[postId] ?? [];
+      const updatedUsers = current.includes(userId)
+        ? current.filter(id => id !== userId)
+        : [...current, userId];
+      const updated = { ...reactions, [postId]: updatedUsers };
+      await AsyncStorage.setItem(KEYS.FEED_REACTIONS, JSON.stringify(updated));
+      return updated;
+    } catch (e) {
+      console.error('Error toggling feed like', e);
+      return {};
+    }
+  },
+
+  // --- EVENTS ---
+  async getEvents(): Promise<EventItem[]> {
+    try {
+      const data = await AsyncStorage.getItem(KEYS.EVENTS);
+      if (!data) {
+        await AsyncStorage.setItem(KEYS.EVENTS, JSON.stringify(INITIAL_EVENTS));
+        return INITIAL_EVENTS;
+      }
+      const parsed = JSON.parse(data) as EventItem[];
+      let changed = false;
+      const normalized = parsed.map((event: any) => {
+        const next = {
+          ...event,
+          likes: typeof event.likes === 'number' ? event.likes : Number(event.attendees ?? 0),
+          saves: typeof event.saves === 'number' ? event.saves : 0,
+          shares: typeof event.shares === 'number' ? event.shares : 0,
+          videos: Array.isArray(event.videos)
+            ? event.videos.map((video: any) => ({
+                ...video,
+                tags: Array.isArray(video.tags) ? video.tags : [],
+              }))
+            : [],
+          posterKey: event.posterKey ?? 'rocket',
+        } as EventItem;
+        if (next !== event) changed = true;
+        return next;
+      });
+      if (changed) {
+        await AsyncStorage.setItem(KEYS.EVENTS, JSON.stringify(normalized));
+      }
+      return normalized;
+    } catch {
+      return INITIAL_EVENTS;
+    }
+  },
+
+  async saveEvents(events: EventItem[]): Promise<void> {
+    try {
+      await AsyncStorage.setItem(KEYS.EVENTS, JSON.stringify(events));
+    } catch (e) {
+      console.error('Error saving events', e);
+    }
+  },
+
+  async addEvent(event: Omit<EventItem, 'id' | 'attendees' | 'likes' | 'saves' | 'shares' | 'videos'>): Promise<EventItem[]> {
+    try {
+      const events = await this.getEvents();
+      const nextEvent: EventItem = {
+        ...event,
+        id: `event-${Date.now()}`,
+        attendees: 0,
+        likes: 0,
+        saves: 0,
+        shares: 0,
+        videos: [],
+      };
+      const updated = [nextEvent, ...events];
+      await this.saveEvents(updated);
+      return updated;
+    } catch (e) {
+      console.error('Error adding event', e);
+      return this.getEvents();
+    }
+  },
+
+  async removeEvent(eventId: string): Promise<EventItem[]> {
+    try {
+      const events = await this.getEvents();
+      const updated = events.filter(event => event.id !== eventId);
+      const reactionsData = await AsyncStorage.getItem(KEYS.EVENT_REACTIONS);
+      const reactions = reactionsData ? JSON.parse(reactionsData) : {};
+
+      Object.keys(reactions).forEach(userId => {
+        const current = reactions[userId] as EventReactionState;
+        reactions[userId] = {
+          liked: (current?.liked ?? []).filter(id => id !== eventId),
+          saved: (current?.saved ?? []).filter(id => id !== eventId),
+          shared: (current?.shared ?? []).filter(id => id !== eventId),
+        };
+      });
+
+      await Promise.all([
+        this.saveEvents(updated),
+        AsyncStorage.setItem(KEYS.EVENT_REACTIONS, JSON.stringify(reactions)),
+      ]);
+      return updated;
+    } catch (e) {
+      console.error('Error removing event', e);
+      return this.getEvents();
+    }
+  },
+
+  async getEventReactions(userId: string): Promise<EventReactionState> {
+    try {
+      const data = await AsyncStorage.getItem(KEYS.EVENT_REACTIONS);
+      const parsed = data ? JSON.parse(data) : {};
+      return parsed[userId] ?? { liked: [], saved: [], shared: [] };
+    } catch {
+      return { liked: [], saved: [], shared: [] };
+    }
+  },
+
+  async toggleEventReaction(
+    eventId: string,
+    userId: string,
+    type: 'liked' | 'saved'
+  ): Promise<{ events: EventItem[]; reactions: EventReactionState }> {
+    try {
+      const [events, allReactionData] = await Promise.all([
+        this.getEvents(),
+        AsyncStorage.getItem(KEYS.EVENT_REACTIONS),
+      ]);
+      const allReactions = allReactionData ? JSON.parse(allReactionData) : {};
+      const reactions: EventReactionState = allReactions[userId] ?? { liked: [], saved: [], shared: [] };
+      const active = reactions[type].includes(eventId);
+      const updatedReactions: EventReactionState = {
+        ...reactions,
+        [type]: active ? reactions[type].filter(id => id !== eventId) : [...reactions[type], eventId],
+      };
+      const counter = type === 'liked' ? 'likes' : 'saves';
+      const updatedEvents = events.map(event => event.id === eventId
+        ? { ...event, [counter]: Math.max(0, event[counter] + (active ? -1 : 1)) }
+        : event
+      );
+      allReactions[userId] = updatedReactions;
+      await Promise.all([
+        AsyncStorage.setItem(KEYS.EVENTS, JSON.stringify(updatedEvents)),
+        AsyncStorage.setItem(KEYS.EVENT_REACTIONS, JSON.stringify(allReactions)),
+      ]);
+      return { events: updatedEvents, reactions: updatedReactions };
+    } catch (e) {
+      console.error('Error toggling event reaction', e);
+      return { events: await this.getEvents(), reactions: await this.getEventReactions(userId) };
+    }
+  },
+
+  async registerEventShare(eventId: string, userId: string): Promise<{ events: EventItem[]; reactions: EventReactionState }> {
+    try {
+      const events = await this.getEvents();
+      const data = await AsyncStorage.getItem(KEYS.EVENT_REACTIONS);
+      const allReactions = data ? JSON.parse(data) : {};
+      const reactions: EventReactionState = allReactions[userId] ?? { liked: [], saved: [], shared: [] };
+      const firstShare = !reactions.shared.includes(eventId);
+      const updatedReactions = {
+        ...reactions,
+        shared: firstShare ? [...reactions.shared, eventId] : reactions.shared,
+      };
+      const updatedEvents = events.map(event => event.id === eventId
+        ? { ...event, shares: event.shares + (firstShare ? 1 : 0) }
+        : event
+      );
+      allReactions[userId] = updatedReactions;
+      await Promise.all([
+        AsyncStorage.setItem(KEYS.EVENTS, JSON.stringify(updatedEvents)),
+        AsyncStorage.setItem(KEYS.EVENT_REACTIONS, JSON.stringify(allReactions)),
+      ]);
+      return { events: updatedEvents, reactions: updatedReactions };
+    } catch (e) {
+      console.error('Error registering event share', e);
+      return { events: await this.getEvents(), reactions: await this.getEventReactions(userId) };
+    }
+  },
+
+  async addEventVideo(eventId: string, video: Omit<EventVideo, 'id' | 'createdAt'>): Promise<EventItem[]> {
+    try {
+      const events = await this.getEvents();
+      const nextVideo: EventVideo = {
+        ...video,
+        id: `video-${Date.now()}`,
+        createdAt: Date.now(),
+      };
+      const updated = events.map(event => event.id === eventId
+        ? {
+            ...event,
+            videoUri: nextVideo.url,
+            videos: [nextVideo, ...event.videos],
+          }
+        : event
+      );
+      await this.saveEvents(updated);
+      return updated;
+    } catch (e) {
+      console.error('Error adding event video', e);
+      return this.getEvents();
+    }
+  },
+
+  async removeEventVideo(eventId: string, videoId: string): Promise<EventItem[]> {
+    try {
+      const events = await this.getEvents();
+
+      const updated = events.map(event => {
+        if (event.id !== eventId) return event;
+
+        const removed = event.videos.find(video => video.id === videoId);
+        if (!removed) return event;
+
+        const nextVideos = event.videos.filter(video => video.id !== videoId);
+        const removedWasActive = removed.url === event.videoUri;
+        const nextVideoUri = removedWasActive
+          ? (nextVideos[0]?.url ?? DEFAULT_EVENT_VIDEO_URI)
+          : event.videoUri;
+
+        return {
+          ...event,
+          videos: nextVideos,
+          videoUri: nextVideoUri,
+        };
+      });
+
+      await this.saveEvents(updated);
+      return updated;
+    } catch (e) {
+      console.error('Error removing event video', e);
+      return this.getEvents();
+    }
+  },
+
   // --- SHARK TANK VOTES ---
   async getUserVotes(): Promise<string[]> {
     try {
@@ -917,6 +1253,9 @@ export const AppStorage = {
       await AsyncStorage.removeItem(KEYS.CHECKED_SUBITEMS);
       await AsyncStorage.removeItem(KEYS.USERS);
       await AsyncStorage.removeItem(KEYS.ACHIEVEMENTS);
+      await AsyncStorage.removeItem(KEYS.FEED_REACTIONS);
+      await AsyncStorage.setItem(KEYS.EVENTS, JSON.stringify(INITIAL_EVENTS));
+      await AsyncStorage.removeItem(KEYS.EVENT_REACTIONS);
     } catch (e) {
       console.error('Error resetting AppStorage', e);
     }

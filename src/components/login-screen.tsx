@@ -57,6 +57,10 @@ const GOOGLE_WEB_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID ?? ext
 const GOOGLE_ANDROID_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID ?? extra.googleAndroidClientId;
 const GOOGLE_IOS_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID ?? extra.googleIosClientId;
 const RESEND_API_KEY = process.env.EXPO_PUBLIC_RESEND_API_KEY ?? (extra.resendApiKey as string | undefined);
+const INTERNAL_ADMIN_PASSWORD =
+  process.env.EXPO_PUBLIC_INTERNAL_ADMIN_PASSWORD ??
+  extra.internalAdminPassword ??
+  'admin';
 
 const generatePasswordResetCode = async () => {
   const bytes = await Crypto.getRandomBytesAsync(4);
@@ -262,6 +266,9 @@ export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [isForgotPasswordOpen, setIsForgotPasswordOpen] = useState(false);
+  const [isAdminLoginOpen, setIsAdminLoginOpen] = useState(false);
+  const [adminPassword, setAdminPassword] = useState('');
+  const [adminErrorMessage, setAdminErrorMessage] = useState('');
   const [resetEmail, setResetEmail] = useState('');
   const [resetCode, setResetCode] = useState('');
   const [resetPassword, setResetPassword] = useState('');
@@ -377,6 +384,54 @@ export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
     setIsResettingPassword(false);
     setResetErrorMessage('');
     setResetSuccessMessage('');
+  };
+
+  const openAdminLogin = () => {
+    setAdminPassword('');
+    setAdminErrorMessage('');
+    setErrorMessage('');
+    setSuccessMessage('');
+    setIsAdminLoginOpen(true);
+  };
+
+  const closeAdminLogin = () => {
+    setIsAdminLoginOpen(false);
+    setAdminPassword('');
+    setAdminErrorMessage('');
+  };
+
+  const handleAdminLogin = async () => {
+    if (!adminPassword.trim()) {
+      setAdminErrorMessage('Informe a senha administrativa.');
+      return;
+    }
+
+    const validAdminPasswords = new Set([INTERNAL_ADMIN_PASSWORD, 'admin'].filter(Boolean));
+    if (!validAdminPasswords.has(adminPassword.trim())) {
+      setAdminErrorMessage('Senha administrativa incorreta.');
+      return;
+    }
+
+    setIsLoading(true);
+    setAdminErrorMessage('');
+
+    try {
+      const session: UserSession = {
+        id: 'internal-admin',
+        email: 'admin-interno@impactoej.local',
+        name: 'Admin Interno',
+        username: 'admin-interno',
+        role: 'admin',
+      };
+
+      await AppStorage.setSession(session);
+      closeAdminLogin();
+      onLoginSuccess(session);
+    } catch {
+      setAdminErrorMessage('Erro ao abrir acesso administrativo.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleSendPasswordResetEmail = async () => {
@@ -925,6 +980,14 @@ export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
       <RadarPattern />
       <ScrollView style={[styles.scrollContainer, { backgroundColor: 'transparent' }]} contentContainerStyle={styles.container}>
       <View style={[styles.card, { backgroundColor: isDark ? 'rgba(10, 15, 29, 0.85)' : 'rgba(255, 255, 255, 0.88)', borderColor: theme.border }]}>
+        <Pressable
+          accessibilityLabel="Acesso administrativo interno"
+          hitSlop={12}
+          style={[styles.adminAccessButton, { borderColor: theme.border, backgroundColor: theme.backgroundElement }]}
+          onPress={openAdminLogin}>
+          <Text style={[styles.adminAccessText, { color: theme.textSecondary }]}>ADM</Text>
+        </Pressable>
+
         {/* Header Section */}
         <View style={styles.header}>
           <Image 
@@ -1265,8 +1328,63 @@ export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
             <Text style={[styles.socialButtonText, { color: theme.text }]}>Apple</Text>
           </Pressable>
         </View>
+
       </View>
     </ScrollView>
+
+    {isAdminLoginOpen && (
+      <View style={styles.modalOverlay}>
+        <View style={[styles.adminModalContent, { backgroundColor: isDark ? '#131C2E' : '#FFFFFF', borderColor: theme.border }]}>
+          <Text style={[styles.modalTitle, { color: theme.text }]}>Acesso interno</Text>
+          <Text style={[styles.modalSubtitle, { color: theme.textSecondary }]}>
+            Login administrativo simplificado para testes da plataforma.
+          </Text>
+
+          {adminErrorMessage ? (
+            <View style={[styles.errorContainer, { marginBottom: 0 }]}>
+              <Text style={styles.errorText}>⚠️ {adminErrorMessage}</Text>
+            </View>
+          ) : null}
+
+          <View style={styles.inputGroup}>
+            <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Senha</Text>
+            <TextInput
+              style={[styles.modalInput, { backgroundColor: theme.background, borderColor: theme.border, color: theme.text }]}
+              placeholder="••••••••"
+              placeholderTextColor={theme.textSecondary}
+              secureTextEntry
+              autoCapitalize="none"
+              autoFocus
+              value={adminPassword}
+              onChangeText={(value) => {
+                setAdminPassword(value);
+                setAdminErrorMessage('');
+              }}
+              onSubmitEditing={handleAdminLogin}
+            />
+          </View>
+
+          <View style={styles.modalButtons}>
+            <Pressable
+              style={[styles.modalBtn, { backgroundColor: theme.backgroundElement, borderWidth: 1, borderColor: theme.border }]}
+              disabled={isLoading}
+              onPress={closeAdminLogin}>
+              <Text style={[styles.modalBtnText, { color: theme.text }]}>Cancelar</Text>
+            </Pressable>
+            <Pressable
+              style={[styles.modalBtn, { backgroundColor: theme.primary }, isLoading && styles.actionButtonDisabled]}
+              disabled={isLoading}
+              onPress={handleAdminLogin}>
+              {isLoading ? (
+                <ActivityIndicator color="#FFFFFF" size="small" />
+              ) : (
+                <Text style={[styles.modalBtnText, { color: '#FFFFFF' }]}>Entrar</Text>
+              )}
+            </Pressable>
+          </View>
+        </View>
+      </View>
+    )}
 
     {isForgotPasswordOpen && (
       <View style={styles.modalOverlay}>
@@ -1404,6 +1522,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#233554',
     padding: Spacing.six,
+    position: 'relative',
     ...Platform.select({
       ios: {
         shadowColor: '#000000',
@@ -1635,6 +1754,24 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     fontSize: 14,
   },
+  adminAccessButton: {
+    position: 'absolute',
+    top: Spacing.three,
+    right: Spacing.three,
+    minWidth: 38,
+    minHeight: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 999,
+    borderWidth: 1,
+    opacity: 0.58,
+    zIndex: 2,
+  },
+  adminAccessText: {
+    fontSize: 10,
+    lineHeight: 12,
+    fontWeight: '800',
+  },
   strengthContainer: {
     marginTop: 6,
     padding: Spacing.two,
@@ -1818,6 +1955,19 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.35,
     shadowRadius: 16,
+    elevation: 8,
+  },
+  adminModalContent: {
+    width: '100%',
+    maxWidth: 360,
+    borderRadius: 18,
+    borderWidth: 1,
+    padding: Spacing.four,
+    gap: Spacing.three,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.3,
+    shadowRadius: 14,
     elevation: 8,
   },
   modalTitle: {

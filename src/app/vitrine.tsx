@@ -14,8 +14,11 @@ import {
     ScrollView,
     StyleSheet,
     View,
+    useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import Svg, { Defs, Rect, Stop, LinearGradient as SvgLinearGradient } from 'react-native-svg';
+import { AppStorage, type EventItem, type FeedPost, type AchievementDefinition } from '@/services/storage';
 
 interface Testimonial {
   id: string;
@@ -33,6 +36,36 @@ interface GalleryItem {
   title: string;
   location: string;
   vibes: string;
+}
+
+interface ImpactStat {
+  id: string;
+  label: string;
+  value: string;
+  helper?: string;
+}
+
+type HighlightType = 'event' | 'video' | 'achievement' | 'news';
+interface HighlightCard {
+  id: string;
+  type: HighlightType;
+  kicker: string;
+  title: string;
+  subtitle: string;
+  icon: string;
+  accent?: string;
+  image: any;
+  yearLabel: string;
+}
+
+interface BornCompany {
+  id: string;
+  name: string;
+  description: string;
+  impact: string;
+  story: string;
+  badge: string;
+  logo: string;
 }
 
 export interface DynamicMetric {
@@ -156,8 +189,63 @@ const GALLERY: GalleryItem[] = [
   },
 ];
 
+const BORN_COMPANIES: BornCompany[] = [
+  {
+    id: 'bc-1',
+    name: 'AgroNet',
+    description: 'Plataforma de monitoramento inteligente para irrigação e gestão agrícola.',
+    impact: 'Redução média de 18% no consumo de água em propriedades piloto.',
+    story: 'Nasceu a partir de um projeto consultivo de EJ e evoluiu com validação em campo e parcerias locais.',
+    badge: 'Origem EJ',
+    logo: '🌱',
+  },
+  {
+    id: 'bc-2',
+    name: 'Mossoró Studio',
+    description: 'Estúdio de produto digital especializado em apps e branding para comércio regional.',
+    impact: 'Mais de 40 PMEs atendidas e aumento de presença digital em cidades do RN.',
+    story: 'Começou como portfólio de entregas em EJ e virou uma operação profissional com foco em qualidade e processo.',
+    badge: 'Spin-off EJ',
+    logo: '🧩',
+  },
+  {
+    id: 'bc-3',
+    name: 'EcoCycle',
+    description: 'Rede de logística reversa com incentivos para reciclagem e rastreio de materiais.',
+    impact: 'Toneladas recicladas e geração de renda para cooperativas locais.',
+    story: 'Ideia amadurecida em desafios internos de EJ e acelerada com apoio do ecossistema universitário.',
+    badge: 'Impacto',
+    logo: '♻️',
+  },
+];
+
+interface CardGradientProps {
+  id: string;
+  colors: [string, string];
+  children?: React.ReactNode;
+  style?: any;
+}
+
+function CardGradient({ id, colors, children, style }: CardGradientProps) {
+  return (
+    <View style={[styles.gradientCardContainer, style]}>
+      <Svg width="100%" height="100%" style={StyleSheet.absoluteFill}>
+        <Defs>
+          <SvgLinearGradient id={id} x1="0%" y1="0%" x2="0%" y2="100%">
+            <Stop offset="0%" stopColor={colors[0]} />
+            <Stop offset="100%" stopColor={colors[1]} />
+          </SvgLinearGradient>
+        </Defs>
+        <Rect width="100%" height="100%" fill={`url(#${id})`} />
+      </Svg>
+      {children}
+    </View>
+  );
+}
+
 export default function VitrineScreen() {
   const theme = useTheme();
+  const { width: windowWidth } = useWindowDimensions();
  
   // Dashboard Filters State
   const [selectedSemester, setSelectedSemester] = useState<string>('2026.1');
@@ -165,6 +253,10 @@ export default function VitrineScreen() {
  
   // Animation Progress state (0 to 1)
   const [animationProgress, setAnimationProgress] = useState(0);
+
+  const [events, setEvents] = useState<EventItem[]>([]);
+  const [posts, setPosts] = useState<FeedPost[]>([]);
+  const [achievements, setAchievements] = useState<AchievementDefinition[]>([]);
  
   // Trigger counting animation on screen focus and filter changes
   useFocusEffect(
@@ -197,6 +289,28 @@ export default function VitrineScreen() {
         cancelAnimationFrame(animationFrameId);
       };
     }, [selectedSemester, selectedCategory])
+  );
+
+  useFocusEffect(
+    React.useCallback(() => {
+      let mounted = true;
+      const load = async () => {
+        const [storedEvents, storedPosts] = await Promise.all([
+          AppStorage.getEvents(),
+          AppStorage.getFeedPosts(),
+        ]);
+        const defs = AppStorage.getAchievementDefinitions();
+
+        if (!mounted) return;
+        setEvents(storedEvents);
+        setPosts(storedPosts);
+        setAchievements(defs);
+      };
+      void load();
+      return () => {
+        mounted = false;
+      };
+    }, [])
   );
  
   // Helper function to animate number formatting dynamically
@@ -248,6 +362,123 @@ export default function VitrineScreen() {
       Alert.alert('Vídeo Depoimento', msg);
     }
   };
+
+  const impactStats: ImpactStat[] = [
+    { id: 'is-1', label: 'Empresas Juniores', value: '48', helper: 'ativas no RN' },
+    { id: 'is-2', label: 'Universitários impactados', value: '3.200+', helper: 'formação prática' },
+    { id: 'is-3', label: 'Projetos realizados', value: '150+', helper: 'soluções entregues' },
+    { id: 'is-4', label: 'Empresas nascidas de EJ', value: '12', helper: 'spin-offs & startups' },
+  ];
+
+  const latestEvents = events.slice(0, 4);
+  const latestNews = posts.slice(0, 4);
+  const featuredAchievements = achievements.slice(0, 4);
+  const featuredVideos = latestEvents
+    .flatMap(event => {
+      const fromList = event.videos.slice(0, 2).map(video => ({ event, title: video.title, url: video.url }));
+      const fromActive = event.videoUri ? [{ event, title: event.title, url: event.videoUri }] : [];
+      return [...fromList, ...fromActive];
+    })
+    .slice(0, 4);
+
+  const highlightImages = {
+    event: require('@/assets/images/mapa.png'),
+    video: require('@/assets/images/foguete-inclinado.png'),
+    achievement: require('@/assets/images/trofeu.png'),
+    news: require('@/assets/images/visitante.png'),
+  } as const;
+
+  const getCardGradientColors = (item: HighlightCard): [string, string] => {
+    if (item.accent === 'viagem' || item.kicker.toLowerCase() === 'viagem' || item.icon === '✈️') {
+      return ['#353C7C', '#1D224F'];
+    }
+    if (item.accent === 'premio' || item.kicker.toLowerCase() === 'prêmio' || item.kicker.toLowerCase() === 'premio' || item.icon === '🏆') {
+      return ['#353C7C', '#5C3806'];
+    }
+    if (item.type === 'event' || item.kicker.toLowerCase().includes('evento')) {
+      return ['#353C7C', '#0E4221'];
+    }
+    if (item.type === 'video' || item.kicker.toLowerCase().includes('vídeo') || item.kicker.toLowerCase().includes('video')) {
+      return ['#353C7C', '#3E1960'];
+    }
+    if (item.type === 'news' || item.kicker.toLowerCase().includes('novidade')) {
+      return ['#353C7C', '#1B2C42'];
+    }
+    return ['#353C7C', '#1B2C42'];
+  };
+
+  const yearLabel = selectedSemester.split('.')[0] || '2026';
+
+  const highlightCards: HighlightCard[] = [
+    {
+      id: 'h-special-viagem',
+      type: 'achievement' as const,
+      kicker: 'Viagem',
+      title: 'ENEJ em Curitiba',
+      subtitle: 'Maior encontro de EJs do Brasil. Passagem e hospedagem pela EJ.',
+      icon: '✈️',
+      accent: 'viagem',
+      image: highlightImages.achievement,
+      yearLabel: '2024',
+    },
+    {
+      id: 'h-special-premio',
+      type: 'achievement' as const,
+      kicker: 'Prêmio',
+      title: 'Melhor EJ do Nordeste',
+      subtitle: 'Ranking nacional da Brasil Júnior. Reconhecimento de todo o movimento.',
+      icon: '🏆',
+      accent: 'premio',
+      image: highlightImages.achievement,
+      yearLabel: '2024',
+    },
+    ...latestEvents.map(event => ({
+      id: `h-event-${event.id}`,
+      type: 'event' as const,
+      kicker: 'Últimos eventos',
+      title: event.title,
+      subtitle: `${event.date} · ${event.location}`,
+      icon: '📅',
+      accent: event.accent,
+      image: highlightImages.event,
+      yearLabel,
+    })),
+    ...featuredVideos.map((video, index) => ({
+      id: `h-video-${video.event.id}-${index}`,
+      type: 'video' as const,
+      kicker: 'Vídeos em destaque',
+      title: video.title,
+      subtitle: `${video.event.host} · ${video.event.location}`,
+      icon: '🎬',
+      accent: video.event.accent,
+      image: highlightImages.video,
+      yearLabel,
+    })),
+    ...featuredAchievements.map(ach => ({
+      id: `h-ach-${ach.id}`,
+      type: 'achievement' as const,
+      kicker: 'Conquistas',
+      title: ach.name,
+      subtitle: ach.description,
+      icon: ach.icon,
+      accent: ach.color,
+      image: highlightImages.achievement,
+      yearLabel,
+    })),
+    ...latestNews.map(post => ({
+      id: `h-news-${post.id}`,
+      type: 'news' as const,
+      kicker: 'Novidades',
+      title: post.title,
+      subtitle: `${post.author} · ${post.date}`,
+      icon: post.category === 'vaga' ? '💼' : post.category === 'evento' ? '📣' : '📰',
+      image: highlightImages.news,
+      yearLabel,
+    })),
+  ].slice(0, 14);
+
+  const highlightCardWidth = 270;
+  const highlightCardHeight = 330;
   
   const getColors = () => {
     return {
@@ -275,265 +506,178 @@ export default function VitrineScreen() {
           
           {/* HEADER */}
           <View style={[styles.header, { alignItems: 'center', marginBottom: Spacing.three }]}>
-            <Image source={require('@/assets/images/foguete-inclinado.png')} style={{ width: 180, height: 140, resizeMode: 'contain', marginBottom: Spacing.two }} />
             <ThemedText type="smallBold" style={{ color: vColors.primary, fontFamily: Fonts.mono }}>
-              [ SISTEMA DE DESIGN & IDENTIDADE ]
+              [ CONQUISTAS · IMPACTO · ECOSSISTEMA ]
             </ThemedText>
             <ThemedText type="subtitle" style={[styles.headerTitle, { color: vColors.text }]}>
-              Vitrine de Impacto
+              Conquistas & Impacto
             </ThemedText>
             <ThemedText type="small" style={[styles.headerSub, { color: vColors.textSec }]}>
-              Certificação de performance e impacto do Movimento Empresa Júnior potiguar, utilizando exclusivamente as tonalidades homologadas de azul.
+              Panorama institucional com indicadores consolidados, destaques recentes e casos de sucesso originados em Empresas Juniores.
             </ThemedText>
           </View>
 
-          {/* METRICS DASHBOARD GRID */}
-          <View style={styles.sectionContainer}>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.three }}>
-              <ThemedText type="smallBold" style={[styles.sectionTitle, { color: vColors.text, marginBottom: 0, fontFamily: Fonts.mono }]}>
-                📊 DASHBOARD DE DESEMPENHO
-              </ThemedText>
-              
-              {/* Semester Dropdown/Chips Selector */}
-              <View style={{ flexDirection: 'row', backgroundColor: vColors.badgeBg, borderRadius: 8, padding: 3, borderColor: vColors.border, borderWidth: vColors.borderWidth, borderStyle: vColors.stampBorder }}>
-                {['2025.1', '2025.2', '2026.1'].map(sem => {
-                  const isActive = selectedSemester === sem;
-                  return (
-                    <Pressable
-                      key={sem}
-                      onPress={() => setSelectedSemester(sem)}
-                      style={{
-                        paddingHorizontal: 8,
-                        paddingVertical: 4,
-                        borderRadius: 6,
-                        backgroundColor: isActive ? vColors.primary : 'transparent',
-                      }}
-                    >
-                      <ThemedText style={{ fontSize: 10, fontWeight: 'bold', fontFamily: Fonts.mono, color: isActive ? '#FFF' : vColors.text }}>
-                        {sem}
-                      </ThemedText>
-                    </Pressable>
-                  );
-                })}
-              </View>
-            </View>
-
-            {/* Metric Category Selector Chips */}
-            <View style={{ flexDirection: 'row', gap: 6, marginBottom: Spacing.four }}>
-              {(['todos', 'faturamento', 'impacto'] as const).map(cat => {
-                const isActive = selectedCategory === cat;
-                const catMap = { todos: '🌟 Todos', faturamento: '💰 Financeiro', impacto: '♻️ Impacto Social' };
-                return (
-                  <Pressable
-                    key={cat}
-                    onPress={() => setSelectedCategory(cat)}
-                    style={{
-                      paddingHorizontal: 12,
-                      paddingVertical: 6,
-                      borderRadius: 16,
-                      backgroundColor: isActive ? vColors.primary : vColors.cardBg,
-                      borderColor: vColors.border,
-                      borderWidth: vColors.borderWidth,
-                      borderStyle: vColors.stampBorder,
-                    }}
-                  >
-                    <ThemedText type="smallBold" style={{ fontSize: 11, fontFamily: Fonts.mono, color: isActive ? '#FFF' : vColors.text }}>
-                      {catMap[cat]}
-                    </ThemedText>
-                  </Pressable>
-                );
-              })}
-            </View>
-            
-            {/* Dynamic Metric Technical Chips */}
-            <View style={{ gap: Spacing.three }}>
-              {DYNAMIC_METRICS.filter(item => selectedCategory === 'todos' || item.category === selectedCategory).map((item) => {
-                const metricDetails = item.semesterValues[selectedSemester] || { value: '0', percentage: 0 };
-                const animatedPercentage = Math.round(animationProgress * metricDetails.percentage);
-                const displayVal = getAnimatedValue(metricDetails.value, animationProgress);
-
-                return (
-                  <View 
-                    key={item.id} 
-                    style={[
-                      styles.metricCard, 
-                      { 
-                        backgroundColor: vColors.cardBg, 
-                        borderColor: vColors.border, 
-                        borderWidth: vColors.borderWidth, 
-                        borderStyle: vColors.stampBorder,
-                        padding: Spacing.four, 
-                        flexDirection: 'column' 
-                      }
-                    ]}
-                  >
-                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
-                      <View style={{ flex: 1, paddingRight: Spacing.two }}>
-                        <ThemedText type="smallBold" style={{ color: vColors.text, fontSize: 13 }}>
-                          {item.label}
-                        </ThemedText>
-                        <ThemedText type="small" style={{ color: vColors.textSec, fontSize: 11, marginTop: 2 }}>
-                          {item.desc}
-                        </ThemedText>
-                      </View>
-                      <ThemedText type="subtitle" style={{ color: vColors.primary, fontWeight: '900', fontSize: 18, fontFamily: Fonts.mono }}>
-                        {displayVal}
-                      </ThemedText>
-                    </View>
-
-                    {/* Technical Specification Label inside the card */}
-                    <View style={[styles.cardSpecLabel, { borderColor: vColors.border, borderStyle: vColors.stampBorder }]}>
-                      <ThemedText style={{ fontSize: 8, fontFamily: Fonts.mono, color: vColors.textSec }}>
-                        APLICAÇÃO: CORES OFICIAIS  |  CERTIFICAÇÃO: MEJ RN
-                      </ThemedText>
-                    </View>
- 
-                    {/* Interactive Horizontal Bar Chart representation */}
-                    <View style={{ height: 8, width: '100%', backgroundColor: vColors.progressTrack, borderRadius: 4, overflow: 'hidden', flexDirection: 'row', borderColor: vColors.border, borderWidth: 0, borderStyle: vColors.stampBorder }}>
-                      <View 
-                        style={{ 
-                          height: '100%', 
-                          width: `${animatedPercentage}%`, 
-                          backgroundColor: vColors.primary, 
-                          borderColor: vColors.border,
-                          borderWidth: 0,
-                          borderRadius: 4 
-                        }} 
-                      />
-                    </View>
-                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 }}>
-                      <ThemedText style={{ fontSize: 8, fontFamily: Fonts.mono, color: vColors.textSec }}>MÍNIMO</ThemedText>
-                      <ThemedText style={{ fontSize: 8, fontFamily: Fonts.mono, color: vColors.primary, fontWeight: 'bold' }}>
-                        META: {animatedPercentage}% CERTIFICADO
-                      </ThemedText>
-                      <ThemedText style={{ fontSize: 8, fontFamily: Fonts.mono, color: vColors.textSec }}>MÁXIMO</ThemedText>
-                    </View>
-                  </View>
-                );
-              })}
-            </View>
-          </View>
-
-          {/* "ONDE ELES ESTÃO AGORA" CAROUSEL */}
+          {/* 1) TOPO COM DADOS/IMPACTO */}
           <View style={styles.sectionContainer}>
             <View style={styles.sectionHeaderRow}>
               <ThemedText type="smallBold" style={[styles.sectionTitle, { color: vColors.text, fontFamily: Fonts.mono }]}>
-                ⭐ TRAJETÓRIAS CORPORATIVAS
+                IMPACTO EM NÚMEROS
               </ThemedText>
               <ThemedText style={{ fontSize: 10, fontFamily: Fonts.mono, color: vColors.primary, fontWeight: 'bold' }}>
-                [ EX-MEMBROS REGISTRADOS ]
+                [ ECOSSISTEMA RN ]
+              </ThemedText>
+            </View>
+
+            <View style={styles.impactGrid}>
+              {impactStats.map(stat => (
+                <View
+                  key={stat.id}
+                  style={[
+                    styles.impactCard,
+                    {
+                      backgroundColor: vColors.cardBg,
+                      borderColor: vColors.border,
+                      borderWidth: vColors.borderWidth,
+                      borderStyle: vColors.stampBorder,
+                    },
+                  ]}
+                >
+                  <ThemedText type="subtitle" style={{ color: vColors.text, fontWeight: '900', fontSize: 18 }}>
+                    {stat.value}
+                  </ThemedText>
+                  <ThemedText type="smallBold" style={{ color: vColors.text, marginTop: 3 }} numberOfLines={1}>
+                    {stat.label}
+                  </ThemedText>
+                </View>
+              ))}
+            </View>
+
+            <View style={{ height: Spacing.one }} />
+          </View>
+
+          {/* 2) CARROSSEL DE DESTAQUES */}
+          <View style={styles.sectionContainer}>
+            <View style={styles.sectionHeaderRow}>
+              <ThemedText type="smallBold" style={[styles.sectionTitle, { color: vColors.text, fontFamily: Fonts.mono }]}>
+                DESTAQUES
+              </ThemedText>
+              <ThemedText style={{ fontSize: 10, fontFamily: Fonts.mono, color: '#A89070', fontWeight: 'bold', letterSpacing: 0.5 }}>
+                DESLIZE PRA VER →
               </ThemedText>
             </View>
 
             <FlatList
               horizontal
-              data={TESTIMONIALS}
+              data={highlightCards}
               keyExtractor={(item) => item.id}
               showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.carouselContainer}
-              renderItem={({ item }) => (
-                <Pressable 
-                  style={[
-                    styles.testimonialCard, 
-                    { 
-                      backgroundColor: vColors.cardBg, 
-                      borderColor: vColors.border, 
-                      borderWidth: vColors.borderWidth,
-                      borderStyle: vColors.stampBorder,
-                    }
-                  ]}
-                  onPress={() => handleOpenTestimonial(item.name)}
-                >
-                  {/* Testimonial Header */}
-                  <View style={styles.testiHeader}>
-                    <View style={[styles.testiAvatarBox, { backgroundColor: vColors.accentBg, overflow: 'hidden' }]}>
-                      <Image source={TESTIMONIAL_AVATARS[item.id]} style={{ width: 44, height: 44, borderRadius: 22 }} />
-                    </View>
-                    <View style={styles.testiMeta}>
-                      <ThemedText type="smallBold" style={[styles.testiName, { color: vColors.text }]}>
-                        {item.name}
-                      </ThemedText>
-                      <ThemedText style={[styles.testiRole, { color: vColors.textSec, fontFamily: Fonts.mono, fontSize: 8 }]}>
-                        {item.previousRole}
-                      </ThemedText>
-                    </View>
-                  </View>
+              contentContainerStyle={styles.highlightCarouselContainer}
+              snapToInterval={highlightCardWidth + Spacing.three}
+              decelerationRate="fast"
+              disableIntervalMomentum
+              renderItem={({ item }) => {
+                const colors = getCardGradientColors(item);
+                return (
+                  <Pressable 
+                    onPress={() => {
+                      if (item.type === 'event') return;
+                      if (item.type === 'video') return;
+                      if (item.type === 'achievement') return;
+                      if (item.type === 'news') return;
+                    }}
+                  >
+                    <CardGradient
+                      id={`grad-${item.id}`}
+                      colors={colors}
+                      style={[
+                        styles.highlightCard,
+                        {
+                          width: highlightCardWidth,
+                          height: highlightCardHeight,
+                        },
+                      ]}
+                    >
+                      <View style={styles.highlightTopRow}>
+                        <ThemedText style={styles.highlightEmoji}>
+                          {item.icon}
+                        </ThemedText>
+                        <View style={styles.highlightPill}>
+                          <ThemedText style={styles.highlightPillText}>
+                            {item.yearLabel}
+                          </ThemedText>
+                        </View>
+                      </View>
 
-                  {/* Quote */}
-                  <ThemedText type="small" style={[styles.testiQuote, { color: vColors.text, fontStyle: 'italic' }]}>
-                    {`"${item.quote}"`}
-                  </ThemedText>
-
-                  {/* Testimonial Footer */}
-                  <View style={[styles.testiFooter, { borderColor: vColors.border, borderStyle: vColors.stampBorder }]}>
-                    <ThemedText style={[styles.testiCompany, { color: vColors.primary, fontFamily: Fonts.mono, fontSize: 9 }]}>
-                      💼 {item.currentCompany}
-                    </ThemedText>
-                    <ThemedText style={{ fontSize: 16 }}>{item.companyLogo}</ThemedText>
-                  </View>
-                  
-                  {/* Play Video Button as a Technical Stamp Outline */}
-                  <View style={[
-                    styles.videoBadge, 
-                    { 
-                      backgroundColor: vColors.badgeBg, 
-                      borderColor: vColors.border, 
-                      borderWidth: 1,
-                      borderStyle: vColors.stampBorder,
-                    }
-                  ]}>
-                    <ThemedText style={{ color: vColors.primary, fontWeight: 'bold', fontSize: 9, fontFamily: Fonts.mono }}>
-                      ▶ ASSISTIR RELATÓRIO VÍDEO
-                    </ThemedText>
-                  </View>
-                </Pressable>
-              )}
+                      <View style={styles.highlightBottom}>
+                        <ThemedText style={styles.highlightKicker}>
+                          {item.kicker.toUpperCase()}
+                        </ThemedText>
+                        <ThemedText style={styles.highlightTitle}>
+                          {item.title}
+                        </ThemedText>
+                        <ThemedText style={styles.highlightSub} numberOfLines={3}>
+                          {item.subtitle}
+                        </ThemedText>
+                      </View>
+                    </CardGradient>
+                  </Pressable>
+                );
+              }}
             />
           </View>
 
-          {/* LIFESTYLE GALLERY */}
+          {/* 3) EMPRESAS QUE NASCERAM DE EJ */}
           <View style={styles.sectionContainer}>
             <ThemedText type="smallBold" style={[styles.sectionTitle, { color: vColors.text, fontFamily: Fonts.mono }]}>
-              ⚡ CRONOGRAMA DE CELEBRAÇÕES MEJ
+              EMPRESAS QUE NASCERAM DE EJ
             </ThemedText>
             <ThemedText type="small" style={[styles.sectionSub, { color: vColors.textSec }]}>
-              Certificação de eventos, premiações e encontros oficiais homologados pela Federação.
+              Histórias reais que começaram dentro da EJ e ganharam o mercado com entrega, processo e impacto.
             </ThemedText>
 
             <View style={styles.galleryList}>
-              {GALLERY.map((item) => (
-                <View 
-                  key={item.id} 
+              {BORN_COMPANIES.map((company) => (
+                <View
+                  key={company.id}
                   style={[
-                    styles.galleryCard, 
-                    { 
-                      backgroundColor: vColors.cardBg, 
-                      borderColor: vColors.border, 
+                    styles.bornCompanyCard,
+                    {
+                      backgroundColor: vColors.cardBg,
+                      borderColor: vColors.border,
                       borderWidth: vColors.borderWidth,
                       borderStyle: vColors.stampBorder,
-                    }
+                    },
                   ]}
                 >
-                  <View style={[styles.galleryEmojiContainer, { backgroundColor: vColors.accentBg }]}>
-                    {GALLERY_IMAGES[item.emoji] ? (
-                      <Image source={GALLERY_IMAGES[item.emoji]} style={{ width: 48, height: 48, resizeMode: 'contain' }} />
-                    ) : (
-                      <ThemedText style={{ fontSize: 32 }}>{item.emoji}</ThemedText>
-                    )}
-                  </View>
-                  <View style={styles.galleryInfo}>
-                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <ThemedText type="smallBold" style={[styles.galleryTitle, { color: vColors.text }]}>
-                        {item.title}
-                      </ThemedText>
-                      <ThemedText style={[styles.galleryLoc, { color: vColors.primary, fontFamily: Fonts.mono, fontSize: 9 }]}>
-                        📍 {item.location}
+                  <View style={styles.bornCompanyHeader}>
+                    <View style={[styles.bornCompanyLogo, { backgroundColor: vColors.accentBg }]}>
+                      <ThemedText style={{ fontSize: 22 }}>{company.logo}</ThemedText>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <View style={styles.bornCompanyTitleRow}>
+                        <ThemedText type="smallBold" style={{ color: vColors.text, fontSize: 15 }} numberOfLines={1}>
+                          {company.name}
+                        </ThemedText>
+                        <View style={[styles.bornCompanyBadge, { backgroundColor: vColors.badgeBg, borderColor: vColors.border, borderWidth: 1, borderStyle: vColors.stampBorder }]}>
+                          <ThemedText style={{ fontSize: 9, fontFamily: Fonts.mono, color: vColors.primary, fontWeight: 'bold' }}>
+                            {company.badge.toUpperCase()}
+                          </ThemedText>
+                        </View>
+                      </View>
+                      <ThemedText type="small" style={{ color: vColors.textSec, marginTop: 3 }} numberOfLines={2}>
+                        {company.description}
                       </ThemedText>
                     </View>
-                    <ThemedText type="small" style={[styles.galleryVibes, { color: vColors.textSec, marginTop: 4 }]}>
-                      {item.vibes}
-                    </ThemedText>
                   </View>
+
+                  <View style={[styles.bornCompanyDivider, { borderColor: vColors.border, borderStyle: vColors.stampBorder }]} />
+
+                  <ThemedText type="smallBold" style={{ color: vColors.text, fontSize: 12 }}>
+                    {company.impact}
+                  </ThemedText>
+                  <ThemedText type="small" style={{ color: vColors.textSec, marginTop: 6, lineHeight: 16 }}>
+                    {company.story}
+                  </ThemedText>
                 </View>
               ))}
             </View>
@@ -600,6 +744,27 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: Spacing.two,
+  },
+
+  // IMPACT GRID
+  impactGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.three,
+  },
+  impactCard: {
+    width: '48%',
+    borderRadius: 18,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.three,
+    minHeight: 86,
+    justifyContent: 'center',
+  },
+  impactTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: Spacing.two,
   },
   
   // BRAND STYLES SEPARATOR CONTROLS
@@ -686,6 +851,11 @@ const styles = StyleSheet.create({
   testiCompany: {
     fontWeight: 'bold',
   },
+  highlightDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
   videoBadge: {
     borderRadius: 8,
     paddingVertical: Spacing.one + 2,
@@ -723,6 +893,125 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 4,
     lineHeight: 16,
+  },
+
+  // BORN COMPANIES
+  bornCompanyCard: {
+    borderRadius: 18,
+    padding: Spacing.four,
+  },
+  bornCompanyHeader: {
+    flexDirection: 'row',
+    gap: Spacing.three,
+    alignItems: 'flex-start',
+  },
+  bornCompanyLogo: {
+    width: 54,
+    height: 54,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  bornCompanyTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: Spacing.two,
+  },
+  bornCompanyBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+  },
+  bornCompanyDivider: {
+    borderTopWidth: 1,
+    marginTop: Spacing.three,
+    paddingTop: Spacing.three,
+    marginBottom: Spacing.two,
+  },
+
+  // HIGHLIGHT CARDS (imagem)
+  gradientCardContainer: {
+    overflow: 'hidden',
+    borderRadius: 24,
+  },
+  highlightCard: {
+    borderRadius: 24,
+    overflow: 'hidden',
+    justifyContent: 'space-between',
+  },
+  highlightImage: {
+    ...StyleSheet.absoluteFillObject,
+    width: undefined,
+    height: undefined,
+    resizeMode: 'cover',
+    opacity: 0.95,
+  },
+  highlightImageOverlay: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  highlightTint: {
+    position: 'absolute',
+    top: -40,
+    right: -50,
+    width: 160,
+    height: 160,
+    borderRadius: 80,
+  },
+  highlightCarouselContainer: {
+    paddingRight: Spacing.four,
+    gap: Spacing.three,
+    paddingVertical: Spacing.one,
+  },
+  highlightTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: Spacing.two,
+    paddingHorizontal: Spacing.four,
+    paddingTop: Spacing.four,
+  },
+  highlightEmoji: {
+    fontSize: 42,
+  },
+  highlightPill: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    backgroundColor: 'rgba(0, 0, 0, 0.15)',
+  },
+  highlightPillText: {
+    fontSize: 11,
+    fontFamily: Fonts.mono,
+    color: '#FFFFFF',
+    fontWeight: 'bold',
+  },
+  highlightBottom: {
+    paddingHorizontal: Spacing.four,
+    paddingBottom: Spacing.four,
+  },
+  highlightKicker: {
+    fontSize: 11,
+    fontFamily: Fonts.mono,
+    color: 'rgba(255, 255, 255, 0.65)',
+    fontWeight: 'bold',
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+    marginBottom: Spacing.two,
+  },
+  highlightTitle: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    lineHeight: 26,
+    marginBottom: Spacing.two,
+  },
+  highlightSub: {
+    fontSize: 13,
+    color: 'rgba(255, 255, 255, 0.8)',
+    lineHeight: 18,
   },
   brandNotice: {
     marginTop: Spacing.five,
