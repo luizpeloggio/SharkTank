@@ -2,23 +2,23 @@ import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native
 import { Stack } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import {
-  View,
   ActivityIndicator,
   Animated,
   Easing,
-  Text,
-  StyleSheet,
   Platform,
+  StyleSheet,
+  Text,
+  View,
 } from 'react-native';
 
-import { useColorScheme } from '@/hooks/use-color-scheme';
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
-import { LoginScreen } from '@/components/login-screen';
-import { AppStorage, UserSession } from '@/services/storage';
-import { CompanyProvider } from '@/contexts/company-context';
-import { AuthContext } from '@/contexts/auth-context';
-import { DrawerProvider } from '@/contexts/drawer-context';
 import { AppDrawer } from '@/components/app-drawer';
+import { LoginScreen } from '@/components/login-screen';
+import { AuthContext } from '@/contexts/auth-context';
+import { CompanyProvider } from '@/contexts/company-context';
+import { DrawerProvider } from '@/contexts/drawer-context';
+import { useColorScheme } from '@/hooks/use-color-scheme';
+import { AppStorage, UserSession } from '@/services/storage';
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();

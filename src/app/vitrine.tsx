@@ -158,26 +158,26 @@ const GALLERY: GalleryItem[] = [
 
 export default function VitrineScreen() {
   const theme = useTheme();
-
+ 
   // Dashboard Filters State
   const [selectedSemester, setSelectedSemester] = useState<string>('2026.1');
   const [selectedCategory, setSelectedCategory] = useState<string>('todos');
-
-  const visualMode = 'brand';
-
+ 
   // Animation Progress state (0 to 1)
   const [animationProgress, setAnimationProgress] = useState(0);
-
+ 
   // Trigger counting animation on screen focus and filter changes
   useFocusEffect(
     React.useCallback(() => {
-      let start = 0;
+      // Re-trigger animation when filters change
+      const _trigger = [selectedSemester, selectedCategory];
+      void _trigger;
       const duration = 900; // ms
       const startTime = performance.now();
       setAnimationProgress(0);
-
+ 
       let animationFrameId: number;
-
+ 
       const tick = (now: number) => {
         const elapsed = now - startTime;
         const progress = Math.min(elapsed / duration, 1);
@@ -192,13 +192,13 @@ export default function VitrineScreen() {
       };
       
       animationFrameId = requestAnimationFrame(tick);
-
+ 
       return () => {
         cancelAnimationFrame(animationFrameId);
       };
     }, [selectedSemester, selectedCategory])
   );
-
+ 
   // Helper function to animate number formatting dynamically
   const getAnimatedValue = (valueStr: string, progress: number) => {
     if (!valueStr) return '';
@@ -239,7 +239,7 @@ export default function VitrineScreen() {
     }
     return valueStr;
   };
-
+ 
   const handleOpenTestimonial = (name: string) => {
     const msg = `Em breve você poderá assistir à entrevista completa em vídeo com ${name} contando a trajetória detalhada de fundação de EJ!`;
     if (Platform.OS === 'web') {
@@ -248,9 +248,6 @@ export default function VitrineScreen() {
       Alert.alert('Vídeo Depoimento', msg);
     }
   };
-
-  // Determine strict styling colors based on guidelines and theme context
-  const isDark = theme.text === '#FFFFFF';
   
   const getColors = () => {
     return {
@@ -464,7 +461,7 @@ export default function VitrineScreen() {
 
                   {/* Quote */}
                   <ThemedText type="small" style={[styles.testiQuote, { color: vColors.text, fontStyle: 'italic' }]}>
-                    "{item.quote}"
+                    {`"${item.quote}"`}
                   </ThemedText>
 
                   {/* Testimonial Footer */}

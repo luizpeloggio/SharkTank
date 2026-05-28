@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { Alert, FlatList, Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams } from 'expo-router';
@@ -13,33 +13,33 @@ import { AppStorage } from '@/services/storage';
 import type { CompanyMembership } from '@/domain/company';
 import { canSeeCompanyAdmin } from '@/services/permissions';
 import { AuthContext } from '@/contexts/auth-context';
-
+ 
 type MemberRow = {
   membership: CompanyMembership;
   displayName: string;
   email: string;
 };
-
+ 
 export default function CompanyMembersScreen() {
   const theme = useTheme();
   const params = useLocalSearchParams<{ companyId: string }>();
   const { session } = useContext(AuthContext);
   const { companyId: activeCompanyId, membership: myMembership, company } = useCompany();
-
+ 
   const companyId = params.companyId;
   const isActiveCompany = activeCompanyId === companyId;
   const isLeader = isActiveCompany && canSeeCompanyAdmin(myMembership);
-
+ 
   const [memberships, setMemberships] = useState<CompanyMembership[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [userIndex, setUserIndex] = useState<Record<string, { email: string; name?: string }>>({});
-
+ 
   const [addEmail, setAddEmail] = useState('');
   const [isAdding, setIsAdding] = useState(false);
-
+ 
   const title = useMemo(() => company?.name ?? 'Empresa', [company?.name]);
-
-  const load = async () => {
+ 
+  const load = useCallback(async () => {
     setIsLoading(true);
     const [list, users] = await Promise.all([
       CompanyRepository.listMembers(companyId),
@@ -48,11 +48,11 @@ export default function CompanyMembersScreen() {
     setMemberships(list);
     setUserIndex(Object.fromEntries(users.map(u => [u.id, { email: u.email, name: u.name }])));
     setIsLoading(false);
-  };
-
+  }, [companyId]);
+ 
   useEffect(() => {
     load();
-  }, [companyId]);
+  }, [load]);
 
   const rows: MemberRow[] = useMemo(() => (
     memberships.map(m => ({

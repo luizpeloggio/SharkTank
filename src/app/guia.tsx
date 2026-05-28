@@ -5,26 +5,26 @@ import { MaxContentWidth, Spacing } from '@/constants/theme';
 import { AuthContext } from '@/contexts/auth-context';
 import { useTheme } from '@/hooks/use-theme';
 import {
-    AppStorage,
-    INITIAL_TRAIL_STEPS,
-    TrailStep
+  AppStorage,
+  INITIAL_TRAIL_STEPS,
+  TrailStep
 } from '@/services/storage';
 import React, { useContext, useEffect, useRef, useState } from 'react';
 import {
-    Alert,
-    Animated,
-    Easing,
-    FlatList,
-    Modal,
-    Platform,
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    TextInput,
-    View
+  Alert,
+  Animated,
+  Easing,
+  FlatList,
+  Modal,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  TextInput,
+  View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import Svg, { Circle, Defs, LinearGradient as SvgLinearGradient, Path, Rect, Stop } from 'react-native-svg';
+import Svg, { Circle, Defs, Path, Rect, Stop, LinearGradient as SvgLinearGradient } from 'react-native-svg';
 
 export interface Mentor {
   id: string;

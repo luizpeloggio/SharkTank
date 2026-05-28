@@ -1,4 +1,4 @@
-﻿import { Spacing } from '@/constants/theme';
+import { Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useTheme } from '@/hooks/use-theme';
 import { AppStorage, UserRole, UserSession } from '@/services/storage';
@@ -11,7 +11,6 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Animated,
-  Dimensions,
   Image,
   Platform,
   Pressable,
@@ -21,11 +20,25 @@ import {
   TextInput,
   View
 } from 'react-native';
+
+// Polyfill window.crypto on Web for non-secure contexts (e.g., testing via IP address)
+if (Platform.OS === 'web' && typeof window !== 'undefined' && !window.crypto) {
+  (window as any).crypto = {
+    getRandomValues: (array: any) => {
+      for (let i = 0; i < array.length; i++) {
+        array[i] = Math.floor(Math.random() * 256);
+      }
+      return array;
+    }
+  } as any;
+}
+
 // Google Sign-In nativo — importado de forma lazy para não crashar no Expo Go
 let GoogleSignin: typeof import('@react-native-google-signin/google-signin').GoogleSignin | null = null;
 let isErrorWithCode: typeof import('@react-native-google-signin/google-signin').isErrorWithCode | null = null;
 let statusCodes: typeof import('@react-native-google-signin/google-signin').statusCodes | null = null;
 try {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const gsModule = require('@react-native-google-signin/google-signin');
   GoogleSignin = gsModule.GoogleSignin;
   isErrorWithCode = gsModule.isErrorWithCode;
@@ -34,7 +47,9 @@ try {
   // Módulo nativo não disponível (ex: Expo Go) — botão Google ficará desabilitado no mobile
 }
 
-const { width } = Dimensions.get('window');
+const useGoogleAuth = Platform.OS === 'web' && typeof Google !== 'undefined' && Google.useAuthRequest
+  ? Google.useAuthRequest
+  : () => [null, null, async () => {}] as any;
 
 WebBrowser.maybeCompleteAuthSession();
 const extra = (Constants.expoConfig?.extra ?? {}) as Record<string, string | undefined>;
@@ -135,7 +150,7 @@ export function RadarPattern() {
         useNativeDriver: true,
       })
     ).start();
-  }, []);
+  }, [spinValue]);
 
   const spin = spinValue.interpolate({
     inputRange: [0, 360],
@@ -282,7 +297,7 @@ export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
       duration: 350,
       useNativeDriver: false,
     }).start();
-  }, [isRegistering]);
+  }, [isRegistering, toggleAnim]);
 
   useEffect(() => {
     if (!isSharkEating) return;
@@ -308,6 +323,7 @@ export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
     }, 150);
 
     return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isSharkEating, isRegistering]);
 
   const handleActionButtonPress = () => {
@@ -576,19 +592,19 @@ export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
   };
 
   // Quick prefill for testing convenience
-  const handlePrefill = (type: 'student' | 'leader' | 'admin') => {
-    if (type === 'student') {
-      setEmail('estudante@uern.br');
-      setPassword('123456');
-    } else if (type === 'leader') {
-      setEmail('lider@uern.br');
-      setPassword('123456');
-    } else {
-      setEmail('admin@uern.br');
-      setPassword('123456');
-    }
-    setErrorMessage('');
-  };
+  // const handlePrefill = (type: 'student' | 'leader' | 'admin') => {
+  //   if (type === 'student') {
+  //     setEmail('estudante@uern.br');
+  //     setPassword('123456');
+  //   } else if (type === 'leader') {
+  //     setEmail('lider@uern.br');
+  //     setPassword('123456');
+  //   } else {
+  //     setEmail('admin@uern.br');
+  //     setPassword('123456');
+  //   }
+  //   setErrorMessage('');
+  // };
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -640,7 +656,7 @@ export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
         await AppStorage.setSession(session);
         setIsLoading(false);
         onLoginSuccess(session);
-      } catch (err) {
+      } catch {
         setIsLoading(false);
         setErrorMessage('Erro ao autenticar. Tente novamente.');
       }
@@ -704,14 +720,14 @@ export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
         await AppStorage.setSession({ ...session, id: saved?.id || session.id });
         setIsLoading(false);
         onLoginSuccess({ ...session, id: saved?.id || session.id });
-      } catch (err) {
+      } catch {
         setIsLoading(false);
         setErrorMessage('Erro ao cadastrar. Tente novamente.');
       }
     }, 1200);
   };
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
-  const [googleRequest, googleResponse, promptGoogleAuth] = Google.useAuthRequest({
+  const [googleRequest, googleResponse, promptGoogleAuth] = useGoogleAuth({
     clientId: Platform.OS === 'web' ? GOOGLE_WEB_CLIENT_ID : undefined,
     webClientId: GOOGLE_WEB_CLIENT_ID,
     androidClientId: GOOGLE_ANDROID_CLIENT_ID,
