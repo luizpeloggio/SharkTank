@@ -194,15 +194,9 @@ export default function SharkTankScreen() {
         <UserProfileHeader />
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
           
-          {/* HEADER VISUAL */}
-          <View style={{ alignItems: 'center', marginBottom: Spacing.three }}>
-            <Image source={require('@/assets/images/width_142.png')} style={{ width: 200, height: 80, resizeMode: 'contain' }} />
-          </View>
-
           {/* SYMPLA SYMPLA EVENTO PANEL */}
           <View style={[styles.eventCard, { backgroundColor: theme.backgroundElement, borderColor: theme.border, borderWidth: 1 }]}>
             <View style={[styles.eventBadge, { backgroundColor: theme.primary, flexDirection: 'row', alignItems: 'center', gap: 6 }]}>
-              <Image source={require('@/assets/images/tubarao-pixel.png')} style={{ width: 18, height: 18, resizeMode: 'contain' }} />
               <ThemedText type="code" style={{ color: '#FFFFFF', fontWeight: 'bold' }}>
                 EVENTO EXCLUSIVO UERN
               </ThemedText>
@@ -260,7 +254,6 @@ export default function SharkTankScreen() {
           {/* JURADOS CAROUSEL */}
           <View style={styles.sectionContainer}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: Spacing.two }}>
-              <Image source={require('@/assets/images/tubarao-pixel.png')} style={{ width: 22, height: 22, resizeMode: 'contain' }} />
               <ThemedText type="smallBold" style={[styles.sectionTitle, { color: theme.text, marginBottom: 0 }]}>
                 Os Tubarões
               </ThemedText>
@@ -369,9 +362,6 @@ export default function SharkTankScreen() {
                           <ThemedText type="code" style={[styles.voteBtnText, { color: voted ? '#FFFFFF' : theme.textSecondary }]}>
                             {voted ? 'Votado ✓' : 'Votar'}
                           </ThemedText>
-                          {!voted && (
-                            <Image source={require('@/assets/images/tubarao-pixel.png')} style={{ width: 14, height: 14, resizeMode: 'contain' }} />
-                          )}
                         </View>
                       </Pressable>
                     </View>
@@ -518,7 +508,6 @@ export default function SharkTankScreen() {
                   style={[styles.publishBtn, { backgroundColor: theme.primary, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }]}
                   onPress={handleEnrollProject}
                 >
-                  <Image source={require('@/assets/images/tubarao-pixel.png')} style={{ width: 18, height: 18, resizeMode: 'contain', tintColor: '#FFF' }} />
                   <ThemedText type="smallBold" style={styles.publishBtnText}>
                     Submeter Inscrição
                   </ThemedText>

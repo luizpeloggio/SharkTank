@@ -235,6 +235,14 @@ export function UserProfileHeader({ onMenuPress }: { onMenuPress?: () => void })
         </Pressable>
       </View>
 
+      <View style={styles.logoWrapper}>
+        <Image
+          source={require('@/assets/images/logo.png')}
+          style={styles.logoImage}
+          resizeMode="contain"
+        />
+      </View>
+
       <View style={styles.headerRightActions}>
         
         {/* A. NOTIFICATION BELL WITH BADGE */}
@@ -499,6 +507,20 @@ const styles = StyleSheet.create({
         zIndex: 100,
       },
     }),
+  },
+  logoWrapper: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    pointerEvents: 'none',
+  },
+  logoImage: {
+    width: 160,
+    height: 160,
   },
   headerRightActions: {
     flexDirection: 'row',

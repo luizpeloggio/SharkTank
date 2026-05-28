@@ -8,7 +8,6 @@ import React, { useState } from 'react';
 import {
     Alert,
     FlatList,
-    Image,
     Platform,
     Pressable,
     ScrollView,
@@ -485,9 +484,6 @@ export default function VitrineScreen() {
           
           {/* HEADER */}
           <View style={[styles.header, { alignItems: 'center', marginBottom: Spacing.three }]}>
-            <ThemedText type="smallBold" style={{ color: vColors.primary, fontFamily: Fonts.mono }}>
-              [ CONQUISTAS · IMPACTO · ECOSSISTEMA ]
-            </ThemedText>
             <ThemedText type="subtitle" style={[styles.headerTitle, { color: vColors.text }]}>
               Conquistas & Impacto
             </ThemedText>
@@ -501,9 +497,6 @@ export default function VitrineScreen() {
             <View style={styles.sectionHeaderRow}>
               <ThemedText type="smallBold" style={[styles.sectionTitle, { color: vColors.text, fontFamily: Fonts.mono }]}>
                 IMPACTO EM NÚMEROS
-              </ThemedText>
-              <ThemedText style={{ fontSize: 10, fontFamily: Fonts.mono, color: vColors.primary, fontWeight: 'bold' }}>
-                [ ECOSSISTEMA RN ]
               </ThemedText>
             </View>
 
