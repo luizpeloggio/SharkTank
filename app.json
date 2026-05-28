@@ -4,11 +4,11 @@
     "slug": "uern-impacto-ej",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/tubaraozao.png",
+    "icon": "./assets/images/tubarao.png",
     "scheme": "uernimpactoej",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "icon": "./assets/images/tubaraozao.png"
+      "icon": "./assets/images/tubarao.png"
     },
     "android": {
       "package": "com.seunome.uernimpactoej",
@@ -19,7 +19,7 @@
     },
     "web": {
       "output": "static",
-      "favicon": "./assets/images/tubaraozao.png"
+      "favicon": "./assets/images/tubarao.png"
     },
     "plugins": [
       "expo-router",

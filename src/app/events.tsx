@@ -10,7 +10,9 @@ import { StatusBar } from 'expo-status-bar';
 import React, { useContext, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
+  Animated,
   FlatList,
+  Image,
   Modal,
   Platform,
   Pressable,
@@ -113,7 +115,12 @@ function EventVideoPlayer({ uri, isActive, accent }: { uri: string; isActive: bo
 
 function ReelFallback({ item, isActive }: { item: EventItem; isActive: boolean }) {
   return (
-    <View style={[styles.fallbackVideo, { backgroundColor: item.accent }]}>
+    <View style={[styles.fallbackVideo, { backgroundColor: '#090D16' }]}>
+      <Image
+        source={require('@/assets/images/foguete-1.png')}
+        style={styles.reelBackgroundImage}
+        resizeMode="contain"
+      />
       <View style={[styles.pulseRing, isActive && styles.pulseRingActive, { borderColor: `${item.accent}66` }]} />
       <View style={styles.scanLine} />
     </View>
@@ -133,16 +140,37 @@ function ActionButton({
   accent: string;
   onPress: () => void;
 }) {
+  const scale = useRef(new Animated.Value(1)).current;
+
+  const handlePress = () => {
+    Animated.sequence([
+      Animated.spring(scale, {
+        toValue: 0.82,
+        speed: 50,
+        bounciness: 4,
+        useNativeDriver: Platform.OS !== 'web',
+      }),
+      Animated.spring(scale, {
+        toValue: 1,
+        speed: 30,
+        bounciness: 12,
+        useNativeDriver: Platform.OS !== 'web',
+      }),
+    ]).start();
+    onPress();
+  };
+
   return (
-    <Pressable
-      style={({ pressed }) => [
-        styles.actionButton,
-        active && { backgroundColor: `${accent}26`, borderColor: `${accent}77` },
-        pressed && styles.actionPressed,
-      ]}
-      onPress={onPress}
-    >
-      <Text style={[styles.actionIcon, active && { color: accent }]}>{icon}</Text>
+    <Pressable onPress={handlePress} style={styles.actionButtonContainer}>
+      <Animated.View
+        style={[
+          styles.actionButtonCircle,
+          { transform: [{ scale }] },
+          active && { backgroundColor: 'rgba(0,0,0,0.5)', borderColor: accent },
+        ]}
+      >
+        <Text style={[styles.actionIcon, active && { color: accent }]}>{icon}</Text>
+      </Animated.View>
       <Text style={[styles.actionText, active && { color: accent }]}>{label}</Text>
     </Pressable>
   );
@@ -181,6 +209,11 @@ function EventReelCard({
 
   return (
     <View style={[styles.reelCard, { width }]}>
+      <Image
+        source={require('@/assets/images/foguete-1.png')}
+        style={styles.reelBackgroundImage}
+        resizeMode="contain"
+      />
       <ReelFallback item={item} isActive={isActive} />
       <EventVideoPlayer uri={item.videoUri} isActive={isActive} accent={item.accent} />
 
@@ -198,30 +231,30 @@ function EventReelCard({
 
       <View style={styles.sideActions}>
         <ActionButton
-          icon={isLiked ? '♥' : '♡'}
+          icon={isLiked ? '❤️' : '🤍'}
           label={formatCount(item.likes)}
           active={isLiked}
           accent="#EF4444"
           onPress={onLike}
         />
         <ActionButton
-          icon="↗"
+          icon="↗️"
           label={isShared ? 'Enviado' : formatCount(item.shares)}
           active={isShared}
-          accent="#009FDF"
+          accent="#38BDF8"
           onPress={onShare}
         />
         <ActionButton
-          icon={isSaved ? '★' : '☆'}
+          icon={isSaved ? '⭐' : '☆'}
           label={formatCount(item.saves)}
           active={isSaved}
-          accent="#FACC15"
+          accent="#EAB308"
           onPress={onSave}
         />
         {isAdmin && (
           <ActionButton
-            icon="+"
-            label="Video"
+            icon="➕"
+            label="Vídeo"
             accent="#FFFFFF"
             onPress={onAddVideo}
           />
@@ -230,13 +263,19 @@ function EventReelCard({
 
       <View style={styles.content}>
         <View style={styles.compactMetaRow}>
-          <Text style={styles.host} numberOfLines={1}>@{item.host}</Text>
-          <Text style={styles.metaDot}>·</Text>
-          <Text style={styles.eventLine} numberOfLines={1}>{item.date}</Text>
-          <Text style={styles.metaDot}>·</Text>
-          <Text style={styles.eventLine} numberOfLines={1}>{item.location}</Text>
+          <View style={[styles.hostBadge, { backgroundColor: `${item.accent}22`, borderColor: `${item.accent}55` }]}>
+            <Text style={[styles.hostText, { color: item.accent }]} numberOfLines={1}>@{item.host}</Text>
+          </View>
+          <View style={styles.metaPill}>
+            <Text style={styles.metaText} numberOfLines={1}>📅 {item.date}</Text>
+          </View>
+          <View style={styles.metaPill}>
+            <Text style={styles.metaText} numberOfLines={1}>📍 {item.location}</Text>
+          </View>
         </View>
-        <Text style={styles.description} numberOfLines={1}>{item.description}</Text>
+
+        <Text style={styles.cardTitle} numberOfLines={1}>{item.title}</Text>
+        <Text style={styles.description} numberOfLines={2}>{item.description}</Text>
 
         {item.videos.length > 0 && (
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.videoStack}>
@@ -249,7 +288,7 @@ function EventReelCard({
                     styles.videoChip,
                     {
                       borderColor: isSelected ? item.accent : 'rgba(255,255,255,0.16)',
-                      backgroundColor: isSelected ? `${item.accent}28` : 'rgba(255,255,255,0.1)',
+                      backgroundColor: isSelected ? `${item.accent}33` : 'rgba(0,0,0,0.4)',
                     },
                   ]}
                   onPress={() => onSelectVideo(video.url)}
@@ -257,7 +296,8 @@ function EventReelCard({
                   delayLongPress={350}
                 >
                   <View style={styles.videoChipRow}>
-                    <Text style={styles.videoChipText} numberOfLines={1}>{video.title}</Text>
+                    <Text style={[styles.videoChipIcon, { color: isSelected ? item.accent : '#94A3B8' }]}>▶</Text>
+                    <Text style={[styles.videoChipText, isSelected && { fontWeight: '900' }]} numberOfLines={1}>{video.title}</Text>
                     {isAdmin && (
                       <Pressable
                         hitSlop={8}
@@ -771,12 +811,23 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  reelBackgroundImage: {
+    position: 'absolute',
+    width: 200,
+    height: 200,
+    opacity: 0.24,
+    left: '50%',
+    top: '50%',
+    marginLeft: -100,
+    marginTop: -100,
+  },
   safeArea: {
     flex: 1,
   },
   headerLayer: {
     paddingHorizontal: Spacing.three,
-    zIndex: 5,
+    zIndex: 10,
+    position: 'relative',
   },
   reelShell: {
     alignItems: 'center',
@@ -786,9 +837,11 @@ const styles = StyleSheet.create({
   reelCard: {
     flex: 1,
     maxHeight: '94%',
-    borderRadius: 18,
+    borderRadius: 24,
     overflow: 'hidden',
-    backgroundColor: '#111827',
+    backgroundColor: '#090D16',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
   },
   videoLayer: {
     ...StyleSheet.absoluteFillObject,
@@ -830,16 +883,16 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     top: 0,
-    height: 56,
-    backgroundColor: 'rgba(0,0,0,0.14)',
+    height: 96,
+    backgroundColor: 'rgba(0,0,0,0.25)',
   },
   bottomFade: {
     position: 'absolute',
     left: 0,
     right: 0,
     bottom: 0,
-    height: 106,
-    backgroundColor: 'rgba(0,0,0,0.38)',
+    height: 160,
+    backgroundColor: 'rgba(0,0,0,0.65)',
   },
   reelChrome: {
     position: 'absolute',
@@ -855,9 +908,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
     borderWidth: 1,
-    backgroundColor: 'rgba(0,0,0,0.36)',
-    paddingHorizontal: 10,
-    paddingVertical: 7,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
     borderRadius: 999,
     maxWidth: 148,
   },
@@ -868,81 +921,109 @@ const styles = StyleSheet.create({
   },
   liveText: {
     color: '#FFFFFF',
-    fontSize: 11,
-    fontWeight: '800',
+    fontSize: 10,
+    fontWeight: '900',
     textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   sideActions: {
     position: 'absolute',
     right: Spacing.three,
     bottom: 84,
-    gap: 8,
+    gap: 14,
     alignItems: 'center',
   },
-  actionButton: {
-    width: 58,
-    minHeight: 54,
+  actionButtonContainer: {
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 4,
-    paddingVertical: 8,
-    paddingHorizontal: 6,
-    borderRadius: 18,
+  },
+  actionButtonCircle: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    alignItems: 'center',
+    justifyContent: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.14)',
-    backgroundColor: 'rgba(0,0,0,0.28)',
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    backgroundColor: 'rgba(0, 0, 0, 0.45)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
+    elevation: 6,
   },
   actionPressed: {
     opacity: 0.76,
-    transform: [{ scale: 0.97 }],
+    transform: [{ scale: 0.92 }],
   },
   actionIcon: {
     color: '#FFFFFF',
-    fontSize: 25,
+    fontSize: 22,
     fontWeight: '900',
-    textShadowColor: 'rgba(0,0,0,0.55)',
-    textShadowRadius: 8,
+    textAlign: 'center',
   },
   actionText: {
     color: '#FFFFFF',
     fontSize: 10,
     fontWeight: '800',
+    textShadowColor: 'rgba(0,0,0,0.6)',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 3,
   },
   content: {
     position: 'absolute',
     left: Spacing.four,
     right: 88,
     bottom: Spacing.three,
-    gap: 3,
+    gap: 6,
     paddingVertical: 6,
   },
   compactMetaRow: {
-    minWidth: 0,
     flexDirection: 'row',
+    flexWrap: 'wrap',
     alignItems: 'center',
-    gap: 5,
+    gap: 6,
+    marginBottom: 2,
   },
-  host: {
-    color: '#FFFFFF',
-    fontSize: 13,
-    fontWeight: '900',
-    maxWidth: 110,
+  hostBadge: {
+    borderWidth: 1,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
   },
-  eventLine: {
-    color: 'rgba(255,255,255,0.86)',
+  hostText: {
     fontSize: 11,
-    lineHeight: 15,
+    fontWeight: '900',
+    letterSpacing: 0.5,
+  },
+  metaPill: {
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    backgroundColor: 'rgba(0, 0, 0, 0.35)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  metaText: {
+    color: '#E2E8F0',
+    fontSize: 10,
     fontWeight: '800',
-    maxWidth: 112,
   },
-  metaDot: {
-    color: 'rgba(255,255,255,0.5)',
-    fontSize: 11,
+  cardTitle: {
+    color: '#FFFFFF',
+    fontSize: 19,
     fontWeight: '900',
+    letterSpacing: 0.3,
+    textShadowColor: 'rgba(0,0,0,0.5)',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 4,
   },
   description: {
-    color: 'rgba(255,255,255,0.76)',
-    fontSize: 11,
-    lineHeight: 15,
+    color: 'rgba(255,255,255,0.82)',
+    fontSize: 12,
+    lineHeight: 16,
     fontWeight: '600',
   },
   videoStack: {
@@ -954,18 +1035,22 @@ const styles = StyleSheet.create({
     maxWidth: 132,
     borderWidth: 1,
     borderRadius: 999,
-    paddingHorizontal: 10,
+    paddingHorizontal: 12,
     paddingVertical: 6,
+  },
+  videoChipIcon: {
+    fontSize: 8,
+    fontWeight: '900',
   },
   videoChipText: {
     color: '#FFFFFF',
     fontSize: 10,
-    fontWeight: '900',
+    fontWeight: '800',
   },
   videoChipRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 5,
   },
   videoChipDelete: {
     width: 18,
@@ -979,8 +1064,8 @@ const styles = StyleSheet.create({
   },
   videoChipDeleteText: {
     color: '#FCA5A5',
-    fontSize: 12,
-    lineHeight: 14,
+    fontSize: 11,
+    lineHeight: 13,
     fontWeight: '900',
   },
   modalOverlay: {

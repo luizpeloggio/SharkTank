@@ -991,11 +991,10 @@ export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
         {/* Header Section */}
         <View style={styles.header}>
           <Image 
-            source={require('@/assets/images/tubarao.png')} 
+            source={require('@/assets/images/logo.png')} 
             style={styles.logoImage} 
             resizeMode="contain" 
           />
-          <Text style={[styles.title, { color: theme.text }]}>ImpactoEJ</Text>
           <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
             A trilha de fundaÃ§Ã£o e conexÃ£o do ecossistema MEJ na UERN.
           </Text>
