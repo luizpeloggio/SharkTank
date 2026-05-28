@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { Alert, FlatList, Platform, Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams } from 'expo-router';
@@ -12,24 +12,24 @@ import { CompanyRepository } from '@/services/company-repository';
 import { AuthContext } from '@/contexts/auth-context';
 import { canTransferLeadership } from '@/services/permissions';
 import { AppStorage } from '@/services/storage';
-
+ 
 export default function TransferLeadershipScreen() {
   const theme = useTheme();
   const params = useLocalSearchParams<{ companyId: string }>();
   const { session } = useContext(AuthContext);
   const { companyId: activeCompanyId, membership: myMembership, company, refresh } = useCompany();
-
+ 
   const companyId = params.companyId;
   const isActiveCompany = activeCompanyId === companyId;
   const canTransfer = isActiveCompany && canTransferLeadership(myMembership);
-
+ 
   const [memberships, setMemberships] = useState<any[]>([]);
   const [userIndex, setUserIndex] = useState<Record<string, { email: string; name?: string }>>({});
   const [isLoading, setIsLoading] = useState(true);
-
+ 
   const title = useMemo(() => company?.name ?? 'Empresa', [company?.name]);
-
-  const load = async () => {
+ 
+  const load = useCallback(async () => {
     setIsLoading(true);
     const [list, users] = await Promise.all([
       CompanyRepository.listMembers(companyId),
@@ -38,16 +38,16 @@ export default function TransferLeadershipScreen() {
     setMemberships(list);
     setUserIndex(Object.fromEntries(users.map(u => [u.id, { email: u.email, name: u.name }])));
     setIsLoading(false);
-  };
-
+  }, [companyId]);
+ 
   useEffect(() => {
     load();
-  }, [companyId]);
-
+  }, [load]);
+ 
   const transferTo = async (targetUserId: string) => {
     if (!session) return;
     if (!canTransfer) return;
-
+ 
     const confirmText = 'Deseja transferir a liderança? Você perderá as opções administrativas imediatamente.';
     const doTransfer = async () => {
       const result = await CompanyRepository.transferLeadership(companyId, session.id, targetUserId);
@@ -65,9 +65,8 @@ export default function TransferLeadershipScreen() {
       if (Platform.OS === 'web') alert(okMsg);
       else Alert.alert('Sucesso', okMsg);
     };
-
+ 
     if (Platform.OS === 'web') {
-      // eslint-disable-next-line no-alert
       const yes = confirm(confirmText);
       if (yes) await doTransfer();
       return;

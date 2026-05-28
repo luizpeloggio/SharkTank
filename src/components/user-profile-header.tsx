@@ -153,7 +153,7 @@ export function UserProfileHeader({ onMenuPress }: { onMenuPress?: () => void })
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [hasUnread, setHasUnread] = useState(true);
   
-  const [notifications, setNotifications] = useState<NotificationItem[]>([
+  const [notifications] = useState<NotificationItem[]>([
     {
       id: 'notif-1',
       icon: '📢',
@@ -171,7 +171,7 @@ export function UserProfileHeader({ onMenuPress }: { onMenuPress?: () => void })
     {
       id: 'notif-3',
       icon: '🎓',
-      title: 'Caminho das Pedras',
+      title: 'Jornada',
       message: 'O mentor Carlos Alberto aprovou os requisitos da Etapa 1.',
       time: '3h atrás',
     },

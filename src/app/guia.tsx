@@ -13,7 +13,6 @@ import React, { useContext, useEffect, useState } from 'react';
 import {
     Alert,
     FlatList,
-    Image,
     Modal,
     Platform,
     Pressable,
@@ -326,19 +325,18 @@ export default function GuiaScreen() {
         <UserProfileHeader />
         
         {/* HEADER SECTION */}
-        <View style={[styles.header, { alignItems: 'center' }]}>
-          <Image source={require('@/assets/images/caminho-do-segmento.png')} style={{ width: 240, height: 120, resizeMode: 'contain', marginBottom: Spacing.two }} />
-          <View>
-            <ThemedText type="smallBold" style={{ color: theme.primary }}>
-              CAMINHO DAS PEDRAS
+        <View style={[styles.header, { flexDirection: 'column', justifyContent: 'flex-start', alignItems: 'flex-start', gap: Spacing.one }]}>
+          <View style={{ alignItems: 'flex-start' }}>
+            <ThemedText type="smallBold" style={{ color: theme.primary, textAlign: 'left' }}>
+              JORNADA
             </ThemedText>
-            <ThemedText type="subtitle" style={[styles.headerTitle, { color: theme.text }]}>
+            <ThemedText type="subtitle" style={[styles.headerTitle, { color: theme.text, textAlign: 'left' }]}>
               Fundação da EJ
             </ThemedText>
           </View>
           
           {userRole === 'admin' && (
-            <View style={[styles.adminBadge, { backgroundColor: theme.backgroundSelected, borderColor: theme.border }]}>
+            <View style={[styles.adminBadge, { backgroundColor: theme.backgroundSelected, borderColor: theme.border, marginTop: Spacing.one }]}>
               <ThemedText type="code" style={[styles.adminBadgeText, { color: theme.text }]}>ADMIN MODE</ThemedText>
             </View>
           )}

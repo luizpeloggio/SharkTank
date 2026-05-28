@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { UserProfileHeader } from '@/components/user-profile-header';
@@ -131,7 +132,7 @@ export default function SharkTankScreen() {
       if (!result.canceled && result.assets && result.assets.length > 0) {
         setProjLogo(result.assets[0].uri);
       }
-    } catch (error) {
+    } catch {
       if (Platform.OS === 'web') {
         alert('Não foi possível carregar a imagem da logo.');
       } else {
@@ -162,7 +163,7 @@ export default function SharkTankScreen() {
     // Save to AsyncStorage
     const currentList = await AppStorage.getSharkProjects();
     const updated = [...currentList, newProj];
-    await require('@react-native-async-storage/async-storage').default.setItem('@uern_impactoej_shark_projects', JSON.stringify(updated));
+    await AsyncStorage.setItem('@uern_impactoej_shark_projects', JSON.stringify(updated));
 
     setProjects(updated);
     setProjName('');

@@ -53,6 +53,15 @@ function CustomTabList(props: React.ComponentProps<typeof TabList>) {
   const insets = useSafeAreaInsets();
   const theme = useTheme();
 
+  // Separa o botão guia (name === 'guia') dos demais
+  const children = React.Children.toArray(props.children);
+  const centerChild = children.find(
+    (child) => React.isValidElement(child) && (child.props as any)?.name === 'guia'
+  );
+  const otherChildren = children.filter(
+    (child) => !(React.isValidElement(child) && (child.props as any)?.name === 'guia')
+  );
+
   return (
     <View
       {...props}
@@ -65,9 +74,17 @@ function CustomTabList(props: React.ComponentProps<typeof TabList>) {
           borderTopWidth: 1,
         },
       ]}>
+      {/* Declive centralizado */}
       <View style={[styles.notchCutout, { backgroundColor: theme.background }]} />
+
+      {/* Botão central - agora centralizado corretamente em relação ao notchCutout */}
+      <View style={styles.centerButtonWrapper}>
+        {centerChild}
+      </View>
+
+      {/* Os 4 botões normais */}
       <View style={styles.tabBar}>
-        {props.children}
+        {otherChildren}
       </View>
     </View>
   );
@@ -87,7 +104,7 @@ function TabButton({
     <Pressable
       {...props}
       style={({ pressed }) => [
-        styles.pressable,
+        !isCenter && styles.pressable,
         routeName === 'vitrine' && styles.leftCenterSpacing,
         routeName === 'events' && styles.rightCenterSpacing,
         isCenter && styles.centerPressable,
@@ -172,12 +189,18 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 1,
   },
-  centerButtonWrap: {
+  centerButtonWrapper: {
     position: 'absolute',
-    left: '50%',
     top: -24,
-    transform: [{ translateX: -28 }],
+    left: '50%',
+    marginLeft: -28, // metade de 56 (width do botão)
+    width: 56,
+    alignItems: 'center',
+    justifyContent: 'center',
     zIndex: 5,
+  },
+  centerButtonWrap: {
+    width: 56,
   },
   centerPressable: {
     width: 56,
