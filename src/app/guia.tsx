@@ -9,11 +9,12 @@ import {
     INITIAL_TRAIL_STEPS,
     TrailStep
 } from '@/services/storage';
-import React, { useContext, useEffect, useState } from 'react';
+import React, { useContext, useEffect, useRef, useState } from 'react';
 import {
     Alert,
+    Animated,
+    Easing,
     FlatList,
-    Image,
     Modal,
     Platform,
     Pressable,
@@ -23,7 +24,7 @@ import {
     View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import Svg, { Circle } from 'react-native-svg';
+import Svg, { Circle, Defs, LinearGradient as SvgLinearGradient, Path, Rect, Stop } from 'react-native-svg';
 
 export interface Mentor {
   id: string;
@@ -83,6 +84,277 @@ export const MENTORS_LIST: Mentor[] = [
   }
 ];
 
+type AchievementModalData = {
+  name: string;
+  stepTitle: string;
+  xp: number;
+  color: string;
+};
+
+const TRAIL_COLORS = {
+  green: '#58CC02',
+  greenDeep: '#46A302',
+  lime: '#89E219',
+  blue: '#1CB0F6',
+  blueDeep: '#0F8ED1',
+  gold: '#FFC800',
+  goldDeep: '#F4A900',
+  gray: '#C9D2DC',
+  grayDeep: '#A7B2BF',
+  ink: '#263340',
+};
+
+const CONFETTI_PARTICLES = [
+  { left: '13%', top: '18%', color: '#58CC02', size: 8, delay: 0 },
+  { left: '77%', top: '15%', color: '#1CB0F6', size: 7, delay: 120 },
+  { left: '22%', top: '36%', color: '#FFC800', size: 6, delay: 70 },
+  { left: '84%', top: '39%', color: '#FF6B6B', size: 9, delay: 170 },
+  { left: '12%', top: '64%', color: '#CE82FF', size: 6, delay: 40 },
+  { left: '72%', top: '70%', color: '#58CC02', size: 7, delay: 100 },
+] as const;
+
+const getStepXp = (stepId: number) => 100 + stepId * 25;
+
+function JourneyHeaderIcon() {
+  return (
+    <Svg width={58} height={58} viewBox="0 0 64 64">
+      <Defs>
+        <SvgLinearGradient id="headerRouteGradient" x1="10" y1="8" x2="54" y2="58">
+          <Stop offset="0" stopColor="#65D9FF" />
+          <Stop offset="1" stopColor={TRAIL_COLORS.blue} />
+        </SvgLinearGradient>
+      </Defs>
+      <Circle cx="32" cy="32" r="28" fill="url(#headerRouteGradient)" />
+      <Circle cx="32" cy="28" r="20" fill="#FFFFFF" opacity={0.14} />
+      <Path
+        d="M20 39 C25 27 36 38 44 25"
+        fill="none"
+        stroke="#FFFFFF"
+        strokeWidth={4}
+        strokeLinecap="round"
+        strokeDasharray="1 8"
+      />
+      <Circle cx="20" cy="39" r="4.5" fill="#FFFFFF" />
+      <Circle cx="44" cy="25" r="4.5" fill={TRAIL_COLORS.gold} />
+      <Path
+        d="M42 16 L51 25 L42 34"
+        fill="none"
+        stroke="#FFFFFF"
+        strokeWidth={3.5}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        opacity={0.92}
+      />
+    </Svg>
+  );
+}
+
+function TrailBackgroundPattern() {
+  return (
+    <View pointerEvents="none" style={styles.trailPattern}>
+      <Svg width="100%" height="100%" viewBox="0 0 390 1080" preserveAspectRatio="xMidYMin meet">
+        <Path
+          d="M197 32 C115 118 296 180 205 270 C118 356 277 420 185 520 C101 612 292 683 203 780 C129 861 246 926 184 1030"
+          fill="none"
+          stroke={TRAIL_COLORS.blue}
+          strokeWidth={24}
+          strokeLinecap="round"
+          opacity={0.035}
+        />
+        <Path
+          d="M197 32 C115 118 296 180 205 270 C118 356 277 420 185 520 C101 612 292 683 203 780 C129 861 246 926 184 1030"
+          fill="none"
+          stroke={TRAIL_COLORS.blueDeep}
+          strokeWidth={4}
+          strokeLinecap="round"
+          strokeDasharray="2 15"
+          opacity={0.17}
+        />
+        <Path
+          d="M66 136 C102 118 128 124 154 152"
+          fill="none"
+          stroke={TRAIL_COLORS.green}
+          strokeWidth={3}
+          strokeLinecap="round"
+          strokeDasharray="2 12"
+          opacity={0.12}
+        />
+        <Path
+          d="M252 382 C288 365 318 374 336 410"
+          fill="none"
+          stroke={TRAIL_COLORS.green}
+          strokeWidth={3}
+          strokeLinecap="round"
+          strokeDasharray="2 12"
+          opacity={0.11}
+        />
+        <Path
+          d="M58 696 C96 672 130 686 150 721"
+          fill="none"
+          stroke={TRAIL_COLORS.blue}
+          strokeWidth={3}
+          strokeLinecap="round"
+          strokeDasharray="2 12"
+          opacity={0.12}
+        />
+        {[
+          { x: 208, y: 96, done: true },
+          { x: 172, y: 228, done: true },
+          { x: 228, y: 363, done: false },
+          { x: 160, y: 515, done: false },
+          { x: 225, y: 704, done: false },
+          { x: 176, y: 914, done: false },
+        ].map((point, index) => (
+          <React.Fragment key={`${point.x}-${point.y}`}>
+            <Circle
+              cx={point.x}
+              cy={point.y}
+              r={12}
+              fill={point.done ? TRAIL_COLORS.green : '#FFFFFF'}
+              opacity={point.done ? 0.14 : 0.18}
+            />
+            <Circle
+              cx={point.x}
+              cy={point.y}
+              r={4}
+              fill={point.done ? TRAIL_COLORS.greenDeep : '#98A7B6'}
+              opacity={0.34}
+            />
+            {index < 5 && (
+              <Path
+                d={`M ${point.x + 24} ${point.y + 20} L ${point.x + 38} ${point.y + 29} L ${point.x + 24} ${point.y + 38}`}
+                fill="none"
+                stroke={index % 2 === 0 ? TRAIL_COLORS.blue : TRAIL_COLORS.green}
+                strokeWidth={3}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                opacity={0.14}
+              />
+            )}
+          </React.Fragment>
+        ))}
+        <Rect x={302} y={167} width={28} height={28} rx={8} fill={TRAIL_COLORS.gold} opacity={0.08} />
+        <Path d="M310 181 L316 187 L326 176" fill="none" stroke={TRAIL_COLORS.goldDeep} strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" opacity={0.16} />
+        <Rect x={56} y={430} width={26} height={26} rx={8} fill={TRAIL_COLORS.green} opacity={0.08} />
+        <Path d="M63 443 L69 449 L78 438" fill="none" stroke={TRAIL_COLORS.greenDeep} strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" opacity={0.16} />
+        <Rect x={288} y={852} width={28} height={28} rx={8} fill={TRAIL_COLORS.blue} opacity={0.08} />
+        <Path d="M296 866 L302 872 L311 861" fill="none" stroke={TRAIL_COLORS.blueDeep} strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" opacity={0.16} />
+      </Svg>
+    </View>
+  );
+}
+
+function CheckIcon({ size = 30, color = '#FFFFFF' }: { size?: number; color?: string }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 32 32">
+      <Path
+        d="M7.5 16.6 13.2 22 24.8 10"
+        fill="none"
+        stroke={color}
+        strokeWidth={4.2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
+
+function LockIcon({ size = 25, color = '#8B99A8' }: { size?: number; color?: string }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 32 32">
+      <Path
+        d="M10.2 13.8v-2.7c0-3.5 2.4-6.1 5.8-6.1s5.8 2.6 5.8 6.1v2.7"
+        fill="none"
+        stroke={color}
+        strokeWidth={3.1}
+        strokeLinecap="round"
+      />
+      <Rect x={7.4} y={13} width={17.2} height={13.8} rx={4.2} fill={color} />
+      <Circle cx={16} cy={19.2} r={1.8} fill="#EEF2F6" />
+      <Path d="M16 20.7v2.3" stroke="#EEF2F6" strokeWidth={2.2} strokeLinecap="round" />
+    </Svg>
+  );
+}
+
+function TrophyIcon({ size = 78, color = TRAIL_COLORS.gold }: { size?: number; color?: string }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 96 96">
+      <Defs>
+        <SvgLinearGradient id="trophyGradient" x1="20" y1="8" x2="76" y2="86">
+          <Stop offset="0" stopColor="#FFE76A" />
+          <Stop offset="0.55" stopColor={color} />
+          <Stop offset="1" stopColor={TRAIL_COLORS.goldDeep} />
+        </SvgLinearGradient>
+      </Defs>
+      <Path d="M30 16h36v11c0 15.8-7.1 27.4-18 27.4S30 42.8 30 27V16Z" fill="url(#trophyGradient)" />
+      <Path d="M34 24H19v6.4c0 9.6 6.1 17.1 15.8 18.8" fill="none" stroke="#F4A900" strokeWidth={7} strokeLinecap="round" />
+      <Path d="M62 24h15v6.4c0 9.6-6.1 17.1-15.8 18.8" fill="none" stroke="#F4A900" strokeWidth={7} strokeLinecap="round" />
+      <Path d="M48 55v12" stroke="#D78D00" strokeWidth={7} strokeLinecap="round" />
+      <Path d="M34 78h28" stroke="#D78D00" strokeWidth={9} strokeLinecap="round" />
+      <Path d="M39 68h18" stroke="#FFC800" strokeWidth={9} strokeLinecap="round" />
+      <Path d="M40 25h16" stroke="#FFF7B8" strokeWidth={5} strokeLinecap="round" opacity={0.9} />
+    </Svg>
+  );
+}
+
+function NodeFace({
+  isCompleted,
+  isUnlocked,
+  isCurrent,
+  stepId,
+}: {
+  isCompleted: boolean;
+  isUnlocked: boolean;
+  isCurrent: boolean;
+  stepId: number;
+}) {
+  const gradientId = `nodeGradient${stepId}`;
+
+  if (!isUnlocked) {
+    return (
+      <View style={styles.nodeIconCenter}>
+        <LockIcon />
+      </View>
+    );
+  }
+
+  return (
+    <Svg width={84} height={84} viewBox="0 0 84 84">
+      <Defs>
+        <SvgLinearGradient id={gradientId} x1="12" y1="8" x2="70" y2="78">
+          <Stop offset="0" stopColor={isCompleted ? TRAIL_COLORS.lime : '#65D9FF'} />
+          <Stop offset="0.55" stopColor={isCompleted ? TRAIL_COLORS.green : TRAIL_COLORS.blue} />
+          <Stop offset="1" stopColor={isCompleted ? TRAIL_COLORS.greenDeep : TRAIL_COLORS.blueDeep} />
+        </SvgLinearGradient>
+      </Defs>
+      <Circle cx="42" cy="42" r="37" fill={`url(#${gradientId})`} />
+      <Circle cx="42" cy="35" r="27" fill="#FFFFFF" opacity={0.14} />
+      <Path d="M23 66c8 6 30 7 42-1" stroke="#000000" strokeWidth={7} strokeLinecap="round" opacity={0.12} />
+      {isCompleted ? (
+        <Path
+          d="M27 42.8 37.5 53 58 31"
+          fill="none"
+          stroke="#FFFFFF"
+          strokeWidth={7}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      ) : (
+        <>
+          <Circle cx="42" cy="42" r={isCurrent ? 20 : 18} fill="#FFFFFF" opacity={0.18} />
+          <Path
+            d="M42 27v30M27 42h30"
+            stroke="#FFFFFF"
+            strokeWidth={isCurrent ? 6 : 5}
+            strokeLinecap="round"
+            opacity={0.96}
+          />
+        </>
+      )}
+    </Svg>
+  );
+}
+
 interface ProgressCircleProps {
   progress: number;
   size: number;
@@ -91,7 +363,6 @@ interface ProgressCircleProps {
 }
 
 function ProgressCircle({ progress, size, strokeWidth, children }: ProgressCircleProps) {
-  const theme = useTheme();
   const center = size / 2;
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
@@ -105,7 +376,7 @@ function ProgressCircle({ progress, size, strokeWidth, children }: ProgressCircl
           cx={center}
           cy={center}
           r={radius}
-          stroke={theme.border}
+          stroke="rgba(201, 210, 220, 0.55)"
           strokeWidth={strokeWidth}
           fill="transparent"
         />
@@ -115,7 +386,7 @@ function ProgressCircle({ progress, size, strokeWidth, children }: ProgressCircl
             cx={center}
             cy={center}
             r={radius}
-            stroke={theme.primary}
+            stroke={TRAIL_COLORS.green}
             strokeWidth={strokeWidth}
             strokeDasharray={circumference}
             strokeDashoffset={strokeDashoffset}
@@ -142,6 +413,11 @@ export default function GuiaScreen() {
   const [checkedSubItems, setCheckedSubItems] = useState<{ [key: string]: boolean }>({});
   const [isMentorsVisible, setIsMentorsVisible] = useState<boolean>(false);
   const [isStepModalVisible, setIsStepModalVisible] = useState<boolean>(false);
+  const [achievementModal, setAchievementModal] = useState<AchievementModalData | null>(null);
+  const achievementScale = useRef(new Animated.Value(0.86)).current;
+  const achievementOpacity = useRef(new Animated.Value(0)).current;
+  const achievementFloat = useRef(new Animated.Value(0)).current;
+  const confettiMotion = useRef(new Animated.Value(0)).current;
 
   // Mentorship and Networking states
   const [selectedArea, setSelectedArea] = useState<string>('todos');
@@ -155,6 +431,62 @@ export default function GuiaScreen() {
   useEffect(() => {
     loadData();
   }, [isStepModalVisible, isMentorsVisible]);
+
+  useEffect(() => {
+    if (!achievementModal) return;
+
+    achievementScale.setValue(0.86);
+    achievementOpacity.setValue(0);
+    achievementFloat.setValue(0);
+    confettiMotion.setValue(0);
+
+    const floatLoop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(achievementFloat, {
+          toValue: 1,
+          duration: 900,
+          easing: Easing.inOut(Easing.quad),
+          useNativeDriver: true,
+        }),
+        Animated.timing(achievementFloat, {
+          toValue: 0,
+          duration: 900,
+          easing: Easing.inOut(Easing.quad),
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    const confettiLoop = Animated.loop(
+      Animated.timing(confettiMotion, {
+        toValue: 1,
+        duration: 1700,
+        easing: Easing.inOut(Easing.quad),
+        useNativeDriver: true,
+      })
+    );
+
+    Animated.parallel([
+      Animated.timing(achievementOpacity, {
+        toValue: 1,
+        duration: 180,
+        easing: Easing.out(Easing.quad),
+        useNativeDriver: true,
+      }),
+      Animated.spring(achievementScale, {
+        toValue: 1,
+        friction: 6,
+        tension: 95,
+        useNativeDriver: true,
+      }),
+    ]).start();
+    floatLoop.start();
+    confettiLoop.start();
+
+    return () => {
+      floatLoop.stop();
+      confettiLoop.stop();
+    };
+  }, [achievementFloat, achievementModal, achievementOpacity, achievementScale, confettiMotion]);
 
   const loadData = async () => {
     const progress = await AppStorage.getTrailProgress();
@@ -255,18 +587,21 @@ export default function GuiaScreen() {
     setCompletedSteps(progress);
     setIsStepModalVisible(false);
     
-    const message = isNowCompleted 
-      ? `Parabéns! Você completou a etapa "${selectedStep.title}"!`
-      : `Etapa "${selectedStep.title}" marcada como pendente.`;
+    if (isNowCompleted) {
+      setAchievementModal({
+        name: earnedBadge?.name ?? 'Etapa dominada',
+        stepTitle: selectedStep.title,
+        xp: getStepXp(selectedStep.id),
+        color: earnedBadge?.color ?? TRAIL_COLORS.green,
+      });
+      return;
+    }
 
-    const finalMessage = isNowCompleted && earnedBadge
-      ? `${message}\n\nNova conquista: ${earnedBadge.icon} ${earnedBadge.name}`
-      : message;
-
+    const message = `Etapa "${selectedStep.title}" marcada como pendente.`;
     if (Platform.OS === 'web') {
-      alert(finalMessage);
+      alert(message);
     } else {
-      Alert.alert(isNowCompleted ? 'Conquista liberada!' : 'Status Atualizado', finalMessage);
+      Alert.alert('Status Atualizado', message);
     }
   };
 
@@ -326,14 +661,19 @@ export default function GuiaScreen() {
         <UserProfileHeader />
         
         {/* HEADER SECTION */}
-        <View style={[styles.header, { alignItems: 'center' }]}>
-          <Image source={require('@/assets/images/caminho-do-segmento.png')} style={{ width: 240, height: 120, resizeMode: 'contain', marginBottom: Spacing.two }} />
-          <View>
-            <ThemedText type="smallBold" style={{ color: theme.primary }}>
-              CAMINHO DAS PEDRAS
+        <View style={[styles.header, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
+          <View style={styles.headerIconWrap}>
+            <JourneyHeaderIcon />
+          </View>
+          <View style={styles.headerCopy}>
+            <ThemedText type="smallBold" style={styles.headerEyebrow}>
+              MAPA DE PROGRESSO
             </ThemedText>
             <ThemedText type="subtitle" style={[styles.headerTitle, { color: theme.text }]}>
-              Fundação da EJ
+              Rota da Fundação
+            </ThemedText>
+            <ThemedText type="small" style={[styles.headerSubtitle, { color: theme.textSecondary }]}>
+              Avance pelos marcos essenciais para tirar sua EJ do papel.
             </ThemedText>
           </View>
           
@@ -359,6 +699,7 @@ export default function GuiaScreen() {
           contentContainerStyle={styles.trailScrollContent}
           showsVerticalScrollIndicator={false}
         >
+          <TrailBackgroundPattern />
           {INITIAL_TRAIL_STEPS.map((step, idx) => {
             const isCompleted = completedSteps.includes(step.id);
             const isUnlocked = isStepUnlocked(step.id);
@@ -373,34 +714,50 @@ export default function GuiaScreen() {
 
             return (
               <View key={step.id} style={[styles.nodeContainer, wiggleStyle]}>
-                
-                {/* Progress Circle wrapping the node button */}
-                <ProgressCircle progress={ratio} size={90} strokeWidth={5}>
+                <ProgressCircle progress={ratio} size={98} strokeWidth={6}>
                   <Pressable
                     style={({ pressed }) => [
                       styles.nodeButton,
-                      { backgroundColor: theme.backgroundElement, borderColor: theme.border },
-                      isCompleted && { backgroundColor: theme.primary, borderColor: '#FF7C4D' },
-                      isCurrent && { backgroundColor: theme.backgroundSelected, borderColor: theme.primary, borderWidth: 5 },
-                      !isUnlocked && { backgroundColor: theme.background, borderColor: theme.border },
+                      isCompleted && styles.nodeButtonCompleted,
+                      isCurrent && styles.nodeButtonCurrent,
+                      !isUnlocked && styles.nodeButtonLocked,
                       pressed && styles.pressed,
                     ]}
                     onPress={() => handleOpenStep(step)}
                   >
-                    <ThemedText 
-                      type="subtitle" 
+                    <View
                       style={[
-                        styles.nodeText,
-                        { color: isCompleted || isCurrent ? '#FFFFFF' : theme.textSecondary }
+                        styles.nodeDepth,
+                        {
+                          backgroundColor: isCompleted
+                            ? TRAIL_COLORS.greenDeep
+                            : isUnlocked
+                              ? TRAIL_COLORS.blueDeep
+                              : TRAIL_COLORS.grayDeep,
+                        },
                       ]}
-                    >
-                      {isCompleted ? '✓' : !isUnlocked ? '🔒' : step.id}
-                    </ThemedText>
+                    />
+                    <View style={styles.nodeTop}>
+                      <NodeFace
+                        isCompleted={isCompleted}
+                        isUnlocked={isUnlocked}
+                        isCurrent={isCurrent}
+                        stepId={step.id}
+                      />
+                    </View>
+                    {isCurrent && <View style={styles.currentPulse} />}
                   </Pressable>
                 </ProgressCircle>
 
-                {/* Micro Node Title */}
-                <View style={styles.nodeLabelContainer}>
+                <View
+                  style={[
+                    styles.nodeLabelContainer,
+                    {
+                      backgroundColor: isUnlocked ? theme.backgroundElement : theme.backgroundSelected,
+                      borderColor: isUnlocked ? theme.border : 'transparent',
+                    },
+                  ]}
+                >
                   <ThemedText 
                     type="smallBold" 
                     style={[
@@ -411,7 +768,7 @@ export default function GuiaScreen() {
                     {step.title}
                   </ThemedText>
                   <ThemedText type="code" style={[styles.nodeLabelSub, { color: theme.textSecondary }]}>
-                    {step.duration}
+                    {isCompleted ? 'Concluida' : isUnlocked ? `${step.duration} +${getStepXp(step.id)} XP` : 'Bloqueada'}
                   </ThemedText>
                 </View>
               </View>
@@ -514,7 +871,7 @@ export default function GuiaScreen() {
                             { borderColor: theme.primary },
                             isChecked && { backgroundColor: theme.primary }
                           ]}>
-                            {isChecked && <ThemedText type="smallBold" style={{ color: '#FFF', fontSize: 10 }}>✓</ThemedText>}
+                            {isChecked && <CheckIcon size={15} />}
                           </View>
                           <ThemedText 
                             type="small" 
@@ -548,7 +905,7 @@ export default function GuiaScreen() {
                       {completedSteps.includes(selectedStep.id) 
                         ? 'Remarcar como Pendente' 
                         : areAllSubItemsChecked() 
-                          ? '✓ Concluir Etapa' 
+                          ? 'Concluir etapa' 
                           : 'Marque todos os requisitos acima'}
                     </ThemedText>
                   </Pressable>
@@ -558,6 +915,99 @@ export default function GuiaScreen() {
             </View>
           </Modal>
         )}
+
+        {/* ================= ACHIEVEMENT UNLOCK MODAL ================= */}
+        <Modal
+          animationType="fade"
+          transparent={true}
+          visible={achievementModal !== null}
+          onRequestClose={() => setAchievementModal(null)}
+        >
+          <View style={styles.achievementOverlay}>
+            {CONFETTI_PARTICLES.map((particle, index) => {
+              const translateY = confettiMotion.interpolate({
+                inputRange: [0, 1],
+                outputRange: [0, index % 2 === 0 ? -12 : 12],
+              });
+              const rotate = confettiMotion.interpolate({
+                inputRange: [0, 1],
+                outputRange: ['0deg', index % 2 === 0 ? '18deg' : '-18deg'],
+              });
+
+              return (
+                <Animated.View
+                  key={`${particle.left}-${particle.top}`}
+                  style={[
+                    styles.confettiParticle,
+                    {
+                      left: particle.left,
+                      top: particle.top,
+                      width: particle.size,
+                      height: particle.size * 1.8,
+                      backgroundColor: particle.color,
+                      opacity: achievementOpacity,
+                      transform: [{ translateY }, { rotate }],
+                    },
+                  ]}
+                />
+              );
+            })}
+
+            <Animated.View
+              style={[
+                styles.achievementCard,
+                {
+                  opacity: achievementOpacity,
+                  transform: [
+                    { scale: achievementScale },
+                    {
+                      translateY: achievementFloat.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [0, -6],
+                      }),
+                    },
+                  ],
+                },
+              ]}
+            >
+              <View style={[styles.achievementGlow, { backgroundColor: achievementModal?.color ?? TRAIL_COLORS.green }]} />
+              <View style={styles.achievementIconShell}>
+                <View style={styles.achievementIconDepth} />
+                <View style={styles.achievementIconTop}>
+                  <TrophyIcon color={achievementModal?.color ?? TRAIL_COLORS.gold} />
+                </View>
+              </View>
+
+              <ThemedText type="smallBold" style={styles.achievementEyebrow}>
+                Conquista desbloqueada!
+              </ThemedText>
+              <ThemedText type="subtitle" style={styles.achievementTitle}>
+                {achievementModal?.name}
+              </ThemedText>
+              <ThemedText type="small" style={styles.achievementSubtitle}>
+                {achievementModal?.stepTitle}
+              </ThemedText>
+
+              <View style={styles.xpPill}>
+                <ThemedText type="smallBold" style={styles.xpPillText}>
+                  +{achievementModal?.xp} XP ganho
+                </ThemedText>
+              </View>
+
+              <Pressable
+                style={({ pressed }) => [
+                  styles.achievementButton,
+                  pressed && styles.achievementButtonPressed,
+                ]}
+                onPress={() => setAchievementModal(null)}
+              >
+                <ThemedText type="smallBold" style={styles.achievementButtonText}>
+                  Continuar jornada
+                </ThemedText>
+              </Pressable>
+            </Animated.View>
+          </View>
+        </Modal>
 
         {/* ================= MENTORS DRAWER MODAL ================= */}
         <Modal
@@ -810,15 +1260,47 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: Spacing.two,
-    marginTop: Spacing.one,
+    gap: Spacing.three,
+    padding: Spacing.three,
+    marginTop: Spacing.two,
+    borderRadius: 24,
+    borderWidth: 1,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.08,
+    shadowRadius: 18,
+    elevation: 3,
+  },
+  headerIconWrap: {
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(28, 176, 246, 0.11)',
+    borderWidth: 1,
+    borderColor: 'rgba(28, 176, 246, 0.18)',
+  },
+  headerCopy: {
+    flex: 1,
+  },
+  headerEyebrow: {
+    color: TRAIL_COLORS.greenDeep,
+    fontSize: 12,
+    lineHeight: 16,
+    letterSpacing: 0,
+    textTransform: 'uppercase',
   },
   headerTitle: {
-    fontSize: 28,
-    fontWeight: '800',
+    fontSize: 27,
+    fontWeight: '900',
     lineHeight: 32,
+    marginTop: 2,
+  },
+  headerSubtitle: {
+    marginTop: Spacing.one,
+    lineHeight: 19,
   },
   adminBadge: {
     backgroundColor: 'rgba(0, 51, 102, 0.15)',
@@ -855,66 +1337,109 @@ const styles = StyleSheet.create({
   trailScrollContent: {
     alignItems: 'center',
     paddingTop: Spacing.four,
+    position: 'relative',
+    gap: Spacing.two,
+  },
+  trailPattern: {
+    position: 'absolute',
+    top: 0,
+    width: '100%',
+    maxWidth: 390,
+    height: 1080,
+    alignSelf: 'center',
+    zIndex: 0,
   },
   nodeContainer: {
     alignItems: 'center',
-    marginVertical: Spacing.two,
+    marginVertical: Spacing.three,
     position: 'relative',
     width: '100%',
-  },
-  connectorLine: {
-    position: 'absolute',
-    top: 75,
-    width: 6,
-    height: 100,
-    zIndex: -1,
+    zIndex: 1,
   },
   nodeButton: {
-    width: 76,
-    height: 76,
-    borderRadius: 38,
-    backgroundColor: '#1E293B',
+    width: 86,
+    height: 92,
+    borderRadius: 44,
+    backgroundColor: 'transparent',
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 4,
-    borderColor: '#111827',
+    borderWidth: 0,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 5,
-    elevation: 6,
+    shadowOffset: { width: 0, height: 9 },
+    shadowOpacity: 0.18,
+    shadowRadius: 13,
+    elevation: 10,
   },
-  nodeCompleted: {
-    backgroundColor: '#003366',
-    borderColor: '#FF7C4D',
+  nodeButtonCompleted: {
+    shadowColor: TRAIL_COLORS.greenDeep,
   },
-  nodeCurrent: {
-    backgroundColor: '#1E293B',
-    borderColor: '#003366',
-    borderWidth: 5,
+  nodeButtonCurrent: {
+    shadowColor: TRAIL_COLORS.blueDeep,
   },
-  nodeLocked: {
-    backgroundColor: '#0F172A',
-    borderColor: '#1E293B',
+  nodeButtonLocked: {
+    opacity: 0.88,
+    shadowOpacity: 0.08,
   },
-  nodeText: {
-    fontWeight: '800',
-    fontSize: 24,
+  nodeDepth: {
+    position: 'absolute',
+    top: 10,
+    width: 84,
+    height: 84,
+    borderRadius: 42,
+    backgroundColor: '#A7B2BF',
+  },
+  nodeTop: {
+    width: 84,
+    height: 84,
+    borderRadius: 42,
+    overflow: 'hidden',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#EEF2F6',
+  },
+  nodeIconCenter: {
+    width: 84,
+    height: 84,
+    borderRadius: 42,
+    backgroundColor: '#E6EBF1',
+    borderWidth: 4,
+    borderColor: '#D2DAE3',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  currentPulse: {
+    position: 'absolute',
+    width: 104,
+    height: 104,
+    borderRadius: 52,
+    borderWidth: 3,
+    borderColor: 'rgba(28, 176, 246, 0.28)',
   },
   nodeLabelContainer: {
     alignItems: 'center',
-    marginTop: Spacing.two,
-    width: 180,
+    marginTop: Spacing.three,
+    width: 210,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.two,
+    borderRadius: 18,
+    borderWidth: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    elevation: 2,
   },
   nodeLabelTitle: {
     textAlign: 'center',
-    fontSize: 14,
-    lineHeight: 18,
+    fontSize: 15,
+    lineHeight: 19,
   },
   nodeLabelSub: {
     color: '#64748B',
     fontSize: 10,
-    marginTop: 2,
+    marginTop: 3,
+    textTransform: 'uppercase',
+    letterSpacing: 0,
   },
   floatingMentorBtn: {
     position: 'absolute',
@@ -939,6 +1464,121 @@ const styles = StyleSheet.create({
   pressed: {
     opacity: 0.8,
     transform: [{ scale: 0.95 }],
+  },
+
+  // ACHIEVEMENT MODAL
+  achievementOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(9, 13, 22, 0.82)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: Spacing.four,
+  },
+  achievementCard: {
+    width: '100%',
+    maxWidth: 360,
+    borderRadius: 32,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.four,
+    paddingTop: Spacing.five,
+    paddingBottom: Spacing.four,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 18 },
+    shadowOpacity: 0.24,
+    shadowRadius: 28,
+    elevation: 16,
+  },
+  achievementGlow: {
+    position: 'absolute',
+    top: -88,
+    width: 230,
+    height: 230,
+    borderRadius: 115,
+    opacity: 0.15,
+  },
+  achievementIconShell: {
+    width: 116,
+    height: 124,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: Spacing.two,
+  },
+  achievementIconDepth: {
+    position: 'absolute',
+    top: 17,
+    width: 108,
+    height: 108,
+    borderRadius: 54,
+    backgroundColor: '#E2A500',
+  },
+  achievementIconTop: {
+    width: 108,
+    height: 108,
+    borderRadius: 54,
+    backgroundColor: '#FFF7CC',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 5,
+    borderColor: '#FFE37A',
+  },
+  achievementEyebrow: {
+    color: TRAIL_COLORS.greenDeep,
+    fontSize: 14,
+    textTransform: 'uppercase',
+    letterSpacing: 0,
+    textAlign: 'center',
+  },
+  achievementTitle: {
+    color: TRAIL_COLORS.ink,
+    fontSize: 27,
+    lineHeight: 32,
+    fontWeight: '900',
+    textAlign: 'center',
+    marginTop: Spacing.one,
+  },
+  achievementSubtitle: {
+    color: '#6B7785',
+    textAlign: 'center',
+    marginTop: Spacing.one,
+  },
+  xpPill: {
+    marginTop: Spacing.three,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.two,
+    borderRadius: 999,
+    backgroundColor: '#EAF8DF',
+    borderWidth: 2,
+    borderColor: '#BDEFA1',
+  },
+  xpPillText: {
+    color: TRAIL_COLORS.greenDeep,
+    fontSize: 15,
+  },
+  achievementButton: {
+    marginTop: Spacing.four,
+    width: '100%',
+    minHeight: 54,
+    borderRadius: 18,
+    backgroundColor: TRAIL_COLORS.green,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderBottomWidth: 5,
+    borderBottomColor: TRAIL_COLORS.greenDeep,
+  },
+  achievementButtonPressed: {
+    transform: [{ translateY: 3 }],
+    borderBottomWidth: 2,
+  },
+  achievementButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '900',
+  },
+  confettiParticle: {
+    position: 'absolute',
+    borderRadius: 3,
   },
   
   // MODALS

@@ -18,7 +18,7 @@ type RouteName = 'index' | 'guia' | 'vitrine' | 'events' | 'sharktank';
 
 const ICON_MAP: Record<RouteName, any> = {
   index: require('@/assets/images/tabIcons/cardapio.png'),
-  guia: require('@/assets/images/tabIcons/caminho-do-segmento.png'),
+  guia: require('@/assets/images/tabIcons/trail.png'),
   vitrine: require('@/assets/images/trofeu-1.png'),
   events: require('@/assets/images/tabIcons/foguete-inclinado.png'),
   sharktank: require('@/assets/images/tubaraozao.png'),
@@ -44,7 +44,7 @@ export default function AppTabs() {
           </TabTrigger>
           <TabTrigger name="guia" href="/guia" asChild>
             <TabButton routeName="guia" isCenter>
-              Guia
+              Rota
             </TabButton>
           </TabTrigger>
         </CustomTabList>
@@ -215,8 +215,8 @@ const styles = StyleSheet.create({
     height: 32,
   },
   centerIcon: {
-    width: 24,
-    height: 24,
+    width: 27,
+    height: 27,
   },
   leftCenterSpacing: {
     marginRight: 30,
