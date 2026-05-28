@@ -995,8 +995,8 @@ export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
           />
           <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
             A trilha de fundação e conexão do ecossistema MEJ na UERN.
+          </Text>
         </View>
-
         {/* Tab Selector */}
         <Animated.View 
           onLayout={(e) => {
