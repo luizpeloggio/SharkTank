@@ -225,9 +225,9 @@ function StrengthIndicator({ text }: { text: string }) {
   const theme = useTheme();
   const status = getValidationStatus(text);
   const rules = [
-    { label: 'Letra maiÃºscula (A-Z)', met: status.hasUpperCase },
-    { label: 'Letra minÃºscula (a-z)', met: status.hasLowerCase },
-    { label: 'NÃºmero (0-9)', met: status.hasNumber },
+    { label: 'Letra maiúscula (A-Z)', met: status.hasUpperCase },
+    { label: 'Letra minúscula (a-z)', met: status.hasLowerCase },
+    { label: 'Número (0-9)', met: status.hasNumber },
     { label: 'Caractere especial (ex: @, #, $, %)', met: status.hasSpecialChar },
   ];
 
@@ -236,7 +236,7 @@ function StrengthIndicator({ text }: { text: string }) {
       {rules.map((rule, index) => (
         <View key={index} style={styles.strengthRow}>
           <Text style={[styles.strengthDot, rule.met ? styles.strengthDotMet : [styles.strengthDotUnmet, { color: theme.textSecondary }]]}>
-            {rule.met ? 'âœ“' : 'â—‹'}
+            {rule.met ? '✓' : '•'}
           </Text>
           <Text style={[styles.strengthText, rule.met ? styles.strengthTextMet : [styles.strengthTextUnmet, { color: theme.textSecondary }]]}>
             {rule.label}
@@ -341,11 +341,11 @@ export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
         return;
       }
       if (!isStrengthValid(username)) {
-        setErrorMessage('O Nome de UsuÃ¡rio deve conter letras maiÃºsculas, minÃºsculas, nÃºmeros e caracteres especiais.');
+        setErrorMessage('O Nome de Usuário deve conter letras maiúsculas, minúsculas, números e caracteres especiais.');
         return;
       }
       if (!isStrengthValid(password)) {
-        setErrorMessage('A Senha deve conter letras maiÃºsculas, minÃºsculas, nÃºmeros e caracteres especiais.');
+        setErrorMessage('A Senha deve conter letras maiúsculas, minúsculas, números e caracteres especiais.');
         return;
       }
     } else {
@@ -354,7 +354,7 @@ export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
         return;
       }
       if (password.length < 6) {
-        setErrorMessage('A senha deve conter no mÃ­nimo 6 caracteres.');
+        setErrorMessage('A senha deve conter no mínimo 6 caracteres.');
         return;
       }
     }
@@ -581,9 +581,7 @@ export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
         {chars.map((char, index) => {
           if (index < sharkEatenCount - 1) {
             return (
-              <Text key={index} style={[styles.actionButtonText, { fontSize: 16 }]}>
-                ðŸ«§
-              </Text>
+              <Text key={index} style={[styles.actionButtonText, { fontSize: 16 }]}>\n                🦈\n              </Text>
             );
           }
           if (index === sharkEatenCount - 1) {
@@ -610,7 +608,7 @@ export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
     try {
       const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!permissionResult.granted) {
-        alert('Ã‰ necessÃ¡rio conceder permissÃ£o de acesso Ã  galeria para enviar uma foto.');
+        alert('É necessário conceder permissão de acesso à galeria para enviar uma foto.');
         return;
       }
 
@@ -668,7 +666,7 @@ export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
     }
 
     if (password.length < 6) {
-      setErrorMessage('A senha deve conter no mÃ­nimo 6 caracteres.');
+      setErrorMessage('A senha deve conter no mínimo 6 caracteres.');
       return;
     }
 
@@ -730,12 +728,12 @@ export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
     }
 
     if (!isStrengthValid(username)) {
-      setErrorMessage('O Nome de UsuÃ¡rio deve conter letras maiÃºsculas, minÃºsculas, nÃºmeros e caracteres especiais.');
+      setErrorMessage('O Nome de Usuário deve conter letras maiúsculas, minúsculas, números e caracteres especiais.');
       return;
     }
 
     if (!isStrengthValid(password)) {
-      setErrorMessage('A Senha deve conter letras maiÃºsculas, minÃºsculas, nÃºmeros e caracteres especiais.');
+      setErrorMessage('A Senha deve conter letras maiúsculas, minúsculas, números e caracteres especiais.');
       return;
     }
 
@@ -997,8 +995,7 @@ export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
           />
           <Text style={[styles.title, { color: theme.text }]}>ImpactoEJ</Text>
           <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
-            A trilha de fundaÃ§Ã£o e conexÃ£o do ecossistema MEJ na UERN.
-          </Text>
+            A trilha de fundação e conexão do ecossistema MEJ na UERN.
         </View>
 
         {/* Tab Selector */}
@@ -1058,7 +1055,7 @@ export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
 
         {errorMessage ? (
           <View style={styles.errorContainer}>
-            <Text style={styles.errorText}>âš ï¸ {errorMessage}</Text>
+            <Text style={styles.errorText}>❌ {errorMessage}</Text>
           </View>
         ) : null}
 
@@ -1091,7 +1088,7 @@ export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
 
           {isRegistering && (
             <View style={styles.inputGroup}>
-              <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Nome de UsuÃ¡rio</Text>
+              <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Nome de Usuário</Text>
               <TextInput
                 style={[
                   styles.input,
@@ -1137,7 +1134,7 @@ export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
                 { backgroundColor: theme.background, borderColor: theme.border, color: theme.text },
                 focusedField === 'password' && { borderColor: theme.primary },
               ]}
-              placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢"
+              placeholder="••••••••"
               placeholderTextColor={theme.textSecondary}
               secureTextEntry
               autoCapitalize="none"
@@ -1170,7 +1167,7 @@ export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
                     setAvatar('');
                   }}>
                   <Text style={[styles.avatarToggleText, !wantsAvatar && { color: theme.primary }]}>
-                    NÃ£o
+                    Não
                   </Text>
                 </Pressable>
                 <Pressable
@@ -1214,12 +1211,12 @@ export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
                       <Image source={{ uri: avatar }} style={[styles.customAvatarPreview, { borderColor: theme.primary }]} />
                     ) : (
                       <View style={[styles.customAvatarPlaceholder, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
-                        <Text style={{ fontSize: 24 }}>{avatar && !PIXEL_AVATARS[avatar] && !avatar.startsWith('http') ? avatar : 'ðŸ‘¤'}</Text>
+                        <Text style={{ fontSize: 24 }}>{avatar && !PIXEL_AVATARS[avatar] && !avatar.startsWith('http') ? avatar : '👤'}</Text>
                       </View>
                     )}
                     
                     <Pressable style={[styles.uploadBtn, { backgroundColor: theme.backgroundSelected, borderColor: theme.border }]} onPress={pickImage}>
-                      <Text style={[styles.uploadBtnText, { color: theme.text }]}>ðŸ“¸ Escolher da Galeria</Text>
+                      <Text style={[styles.uploadBtnText, { color: theme.text }]}>🖼️ Escolher da Galeria</Text>
                     </Pressable>
                   </View>
                 </View>
@@ -1239,7 +1236,7 @@ export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
                     selectedRole === 'estudante' && { borderColor: theme.primary, backgroundColor: theme.backgroundSelected },
                   ]}
                   onPress={() => setSelectedRole('estudante')}>
-                  <Text style={styles.roleEmoji}>ðŸŽ“</Text>
+                  <Text style={styles.roleEmoji}>🎓</Text>
                   <Text
                     style={[
                       styles.roleText,
@@ -1258,14 +1255,14 @@ export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
                     selectedRole === 'lider' && { borderColor: theme.primary, backgroundColor: theme.backgroundSelected },
                   ]}
                   onPress={() => setSelectedRole('lider')}>
-                  <Text style={styles.roleEmoji}>ðŸ’¼</Text>
+                  <Text style={styles.roleEmoji}>📣</Text>
                   <Text
                     style={[
                       styles.roleText,
                       { color: theme.textSecondary },
                       selectedRole === 'lider' && { color: theme.primary },
                     ]}>
-                    LÃ­der
+                    Líder
                   </Text>
                   <Text style={[styles.roleSub, { color: theme.textSecondary }]}>Divulgar</Text>
                 </Pressable>
