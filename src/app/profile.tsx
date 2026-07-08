@@ -10,6 +10,7 @@ import {
   Modal,
   TextInput,
   Text,
+  Share,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
@@ -112,33 +113,119 @@ export default function ProfileScreen() {
   const [completedStepsDisplay, setCompletedStepsDisplay] = useState<number>(0);
   const [achievements, setAchievements] = useState<EarnedAchievement[]>([]);
   const [completedSteps, setCompletedSteps] = useState<number[]>([]);
-  const [isAvatarModalVisible, setIsAvatarModalVisible] = useState(false);
+  const [isEditModalVisible, setIsEditModalVisible] = useState(false);
+  const [isPasswordModalVisible, setIsPasswordModalVisible] = useState(false);
+  const [isAvatarPreviewVisible, setIsAvatarPreviewVisible] = useState(false);
+  const [isCoverPreviewVisible, setIsCoverPreviewVisible] = useState(false);
   const [selectedAvatar, setSelectedAvatar] = useState(session?.avatar || '');
+  const [selectedCover, setSelectedCover] = useState(session?.coverImage || '');
+  const [isFollowingUser, setIsFollowingUser] = useState(false);
 
   const [editUsername, setEditUsername] = useState(session?.username || '');
   const [editName, setEditName] = useState(session?.name || '');
   const [isSavingDetails, setIsSavingDetails] = useState(false);
-  const [isEditSectionOpen, setIsEditSectionOpen] = useState(false);
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
-  const [isSavingName, setIsSavingName] = useState(false);
-  const [isSavingUsername, setIsSavingUsername] = useState(false);
   const [isSavingPassword, setIsSavingPassword] = useState(false);
+
+  const [isNotificationsModalVisible, setIsNotificationsModalVisible] = useState(false);
+  const [notifications, setNotifications] = useState<any[]>([
+    {
+      id: 'notif-1',
+      icon: '📢',
+      title: 'Mural de Notícias',
+      message: 'UERN Tech fechou nova parceria B2B de desenvolvimento!',
+      time: '2 min atrás',
+      read: false,
+    },
+    {
+      id: 'notif-2',
+      icon: '🦈',
+      title: 'Shark Tank UERN',
+      message: 'Seu projeto de pitch recebeu novos votos da torcida popular!',
+      time: '1h atrás',
+      read: false,
+    },
+    {
+      id: 'notif-3',
+      icon: '🎓',
+      title: 'Jornada de Inovação',
+      message: 'A coordenação de extensão aprovou a documentação de sua EJ.',
+      time: '3h atrás',
+      read: false,
+    },
+    {
+      id: 'notif-4',
+      icon: '💡',
+      title: 'Novo Desafio',
+      message: 'Participe do próximo hackathon com mentoria exclusiva.',
+      time: '1 dia atrás',
+      read: true,
+    },
+  ]);
+
+  const toggleNotificationRead = async (id: string) => {
+    const updated = notifications.map(n => n.id === id ? { ...n, read: !n.read } : n);
+    setNotifications(updated);
+    if (session) {
+      await AsyncStorage.setItem(`sharktank_notifications_${session.id}`, JSON.stringify(updated));
+    }
+  };
+
+  const markAllAsRead = async () => {
+    const updated = notifications.map(n => ({ ...n, read: true }));
+    setNotifications(updated);
+    if (session) {
+      await AsyncStorage.setItem(`sharktank_notifications_${session.id}`, JSON.stringify(updated));
+    }
+  };
+
+  const clearAllNotifications = async () => {
+    setNotifications([]);
+    if (session) {
+      await AsyncStorage.setItem(`sharktank_notifications_${session.id}`, JSON.stringify([]));
+    }
+  };
+
+  const handleShareProfile = async () => {
+    try {
+      await Share.share({
+        message: `Confira o perfil de ${session?.name || 'Membro'} no SharkTank UERN!`,
+        url: Platform.OS === 'web' ? window.location.href : undefined,
+      });
+    } catch (error) {
+      console.error('Error sharing profile:', error);
+    }
+  };
 
   useEffect(() => {
     if (session) {
       setEditUsername(session.username || '');
       setEditName(session.name || '');
+      setSelectedAvatar(session.avatar || '');
+      setSelectedCover(session.coverImage || '');
+
+      const loadNotifications = async () => {
+        const stored = await AsyncStorage.getItem(`sharktank_notifications_${session.id}`);
+        if (stored) {
+          try {
+            setNotifications(JSON.parse(stored));
+          } catch (e) {
+            console.error('Failed to parse notifications', e);
+          }
+        }
+      };
+      loadNotifications();
     }
   }, [session]);
 
   useEffect(() => {
     if (params.edit === '1') {
-      setIsEditSectionOpen(true);
+      setIsEditModalVisible(true);
     }
   }, [params.edit]);
 
-  const handleSaveName = async () => {
+  const handleSaveProfile = async () => {
     if (!session) return;
     if (!editName.trim()) {
       const msg = 'O nome completo não pode ficar vazio.';
@@ -146,52 +233,62 @@ export default function ProfileScreen() {
       else Alert.alert('Erro ⚠️', msg);
       return;
     }
-    setIsSavingName(true);
-    try {
-      const updated = { ...session, name: editName.trim() };
-      await updateSession(updated);
-      const successMsg = 'Nome completo atualizado com sucesso! ✨';
-      if (Platform.OS === 'web') alert(successMsg);
-      else Alert.alert('Sucesso! 👤', successMsg);
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setIsSavingName(false);
-    }
-  };
-
-  const handleSaveUsername = async () => {
-    if (!session) return;
-    if (!editUsername.trim()) {
+    const usernameTrimmed = editUsername.trim();
+    if (!usernameTrimmed) {
       const msg = 'O nome de usuário não pode ficar vazio.';
       if (Platform.OS === 'web') alert(msg);
       else Alert.alert('Erro ⚠️', msg);
       return;
     }
-    const isStrengthValid = (text: string) => {
-      const hasUpper = /[A-Z]/.test(text);
-      const hasLower = /[a-z]/.test(text);
-      const hasDigit = /[0-9]/.test(text);
-      const hasSpecial = /[!@#$%^&*(),.?":{}|<>]/.test(text);
-      return hasUpper && hasLower && hasDigit && hasSpecial;
-    };
-    if (!isStrengthValid(editUsername)) {
-      const msg = 'O Nome de Usuário deve conter letras maiúsculas, minúsculas, números e caracteres especiais.';
+    if (!usernameTrimmed.startsWith('@')) {
+      const msg = 'O Nome de Usuário deve começar com "@" (ex: @exemplo123).';
+      if (Platform.OS === 'web') alert(msg);
+      else Alert.alert('Nome de Usuário Inválido ⚠️', msg);
+      return;
+    }
+    const hasUpper = /[A-Z]/.test(usernameTrimmed);
+    const hasLower = /[a-z]/.test(usernameTrimmed);
+    const hasDigit = /[0-9]/.test(usernameTrimmed);
+    const hasSpecial = /[!@#$%^&*(),.?":{}|<>]/.test(usernameTrimmed);
+    if (!hasUpper || !hasLower || !hasDigit || !hasSpecial) {
+      const msg = 'O Nome de Usuário deve conter letra maiúscula, letras minúsculas, números e caracteres especiais.';
       if (Platform.OS === 'web') alert(msg);
       else Alert.alert('Nome de Usuário Fraco ⚠️', msg);
       return;
     }
-    setIsSavingUsername(true);
+
+    setIsSavingDetails(true);
     try {
-      const updated = { ...session, username: editUsername.trim() };
+      const normalizedUsername = usernameTrimmed.toLowerCase();
+      const users = await AppStorage.getUsers();
+      const isTaken = users.some(u => u.id !== session.id && u.username?.toLowerCase().trim() === normalizedUsername);
+      if (isTaken) {
+        const msg = 'Este nome de usuário já está em uso por outra pessoa.';
+        if (Platform.OS === 'web') alert(msg);
+        else Alert.alert('Nome de Usuário Duplicado ⚠️', msg);
+        setIsSavingDetails(false);
+        return;
+      }
+
+      const updated = {
+        ...session,
+        name: editName.trim(),
+        username: usernameTrimmed,
+        avatar: selectedAvatar,
+        coverImage: selectedCover,
+      };
       await updateSession(updated);
-      const successMsg = 'Nome de usuário atualizado com sucesso! ✨';
+      setIsEditModalVisible(false);
+      const successMsg = 'Perfil atualizado com sucesso! ✨';
       if (Platform.OS === 'web') alert(successMsg);
-      else Alert.alert('Sucesso! 🌐', successMsg);
+      else Alert.alert('Sucesso! 👤', successMsg);
     } catch (e) {
       console.error(e);
+      const errMsg = 'Erro ao salvar alterações no perfil.';
+      if (Platform.OS === 'web') alert(errMsg);
+      else Alert.alert('Erro ⚠️', errMsg);
     } finally {
-      setIsSavingUsername(false);
+      setIsSavingDetails(false);
     }
   };
 
@@ -226,6 +323,7 @@ export default function ProfileScreen() {
       await AsyncStorage.setItem('@uern_impactoej_password', newPassword);
       setCurrentPassword('');
       setNewPassword('');
+      setIsPasswordModalVisible(false);
       const successMsg = 'Sua senha foi alterada com sucesso! 🔒';
       if (Platform.OS === 'web') alert(successMsg);
       else Alert.alert('Sucesso! ✨', successMsg);
@@ -321,19 +419,43 @@ export default function ProfileScreen() {
     }
   };
 
-  const handleSaveAvatar = async () => {
-    if (!session) return;
-    const updatedSession = {
-      ...session,
-      avatar: selectedAvatar,
-    };
-    await updateSession(updatedSession);
-    setIsAvatarModalVisible(false);
-    
-    if (Platform.OS === 'web') {
-      alert('Foto de perfil atualizada com sucesso!');
-    } else {
-      Alert.alert('Sucesso! 📸', 'Sua foto de perfil foi atualizada!');
+  const pickCoverImage = async () => {
+    try {
+      const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permissionResult.granted) {
+        alert('É necessário conceder permissão de acesso à galeria para enviar uma foto de capa.');
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [16, 9],
+        quality: 0.7,
+        base64: true,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const selectedAsset = result.assets[0];
+        const uri = selectedAsset.base64 ? `data:image/jpeg;base64,${selectedAsset.base64}` : selectedAsset.uri;
+        setSelectedCover(uri);
+      }
+    } catch (e) {
+      console.error('Error picking cover image:', e);
+      if (Platform.OS === 'web' && typeof document !== 'undefined') {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'image/*';
+        input.onchange = (event: any) => {
+          const file = event.target.files[0];
+          const reader = new FileReader();
+          reader.onload = (e: any) => {
+            setSelectedCover(reader.result as string);
+          };
+          reader.readAsDataURL(file);
+        };
+        input.click();
+      }
     }
   };
 
@@ -416,27 +538,39 @@ export default function ProfileScreen() {
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
           
           <View style={[styles.profileShell, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
-            <View style={[styles.profileCover, { backgroundColor: theme.background, borderBottomColor: theme.border }]} />
-            <Pressable style={styles.profileAvatarButton} onPress={() => setIsAvatarModalVisible(true)}>
-              <View style={[styles.profileAvatarLarge, { backgroundColor: theme.backgroundSelected, borderColor: theme.backgroundElement }]}>
-                {session?.avatar ? renderAvatarHelper(session.avatar, currentRole, 84) : (
-                  <ThemedText style={[styles.profileAvatarInitials, { color: theme.text }]}>{profileInitials}</ThemedText>
-                )}
-              </View>
+            <Pressable 
+              style={[styles.profileCover, { backgroundColor: theme.background, borderBottomColor: theme.border, overflow: 'hidden' }]}
+              onPress={() => setIsCoverPreviewVisible(true)}
+            >
+              {session?.coverImage ? (
+                <Image source={{ uri: session.coverImage }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+              ) : null}
             </Pressable>
-
-            <View style={styles.profileBody}>
-              <View style={styles.profileNameRow}>
-                <View style={{ flex: 1 }}>
-                  <ThemedText type="subtitle" style={[styles.profileName, { color: theme.text }]} numberOfLines={1}>
-                    {profileName}
-                  </ThemedText>
-                  <ThemedText type="small" style={[styles.profileSubtitle, { color: theme.textSecondary }]}>
-                    Ciência da Computação · 5º período
-                  </ThemedText>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', paddingRight: Spacing.four, marginTop: -56 }}>
+              <Pressable style={styles.profileAvatarButton} onPress={() => setIsAvatarPreviewVisible(true)}>
+                <View style={[styles.profileAvatarLarge, { backgroundColor: theme.backgroundSelected, borderColor: theme.backgroundElement }]}>
+                  {session?.avatar ? renderAvatarHelper(session.avatar, currentRole, 84) : (
+                    <ThemedText style={[styles.profileAvatarInitials, { color: theme.text }]}>{profileInitials}</ThemedText>
+                  )}
                 </View>
+              </Pressable>
+
+              <View style={{ flexDirection: 'row', gap: Spacing.two, marginBottom: Spacing.two, alignItems: 'center' }}>
                 <Pressable
-                  onPress={() => setIsEditSectionOpen(value => !value)}
+                  onPress={handleShareProfile}
+                  style={({ pressed }) => [
+                    styles.shareIconButton,
+                    { borderColor: theme.border, backgroundColor: theme.backgroundElement },
+                    pressed && { opacity: 0.75 },
+                  ]}
+                >
+                  <Image 
+                    source={require('@/assets/images/aviao-de-papel.png')} 
+                    style={{ width: 16, height: 16, resizeMode: 'contain', tintColor: theme.text }} 
+                  />
+                </Pressable>
+                <Pressable
+                  onPress={() => setIsEditModalVisible(true)}
                   style={({ pressed }) => [
                     styles.editPill,
                     { borderColor: theme.border, backgroundColor: theme.backgroundElement },
@@ -445,6 +579,36 @@ export default function ProfileScreen() {
                 >
                   <ThemedText type="smallBold" style={{ color: theme.text }}>Editar</ThemedText>
                 </Pressable>
+                <Pressable
+                  onPress={() => setIsFollowingUser(v => !v)}
+                  style={({ pressed }) => [
+                    styles.editPill,
+                    { borderColor: theme.border, backgroundColor: isFollowingUser ? theme.backgroundSelected : theme.backgroundElement },
+                    pressed && { opacity: 0.75 },
+                  ]}
+                >
+                  <ThemedText type="smallBold" style={{ color: isFollowingUser ? theme.primary : theme.text }}>
+                    {isFollowingUser ? 'Seguindo' : 'Seguir'}
+                  </ThemedText>
+                </Pressable>
+              </View>
+            </View>
+
+            <View style={styles.profileBody}>
+              <View style={styles.profileNameRow}>
+                <View style={{ flex: 1 }}>
+                  <ThemedText type="subtitle" style={[styles.profileName, { color: theme.text }]} numberOfLines={1}>
+                    {profileName}
+                  </ThemedText>
+                  {session?.username ? (
+                    <ThemedText type="small" style={{ color: theme.primary, marginTop: 2, fontWeight: 'bold' }}>
+                      {session.username}
+                    </ThemedText>
+                  ) : null}
+                  <ThemedText type="small" style={[styles.profileSubtitle, { color: theme.textSecondary, marginTop: 4 }]}>
+                    Ciência da Computação · 5º período
+                  </ThemedText>
+                </View>
               </View>
 
               <View style={styles.companyAffiliation}>
@@ -520,8 +684,11 @@ export default function ProfileScreen() {
               <View style={styles.mockSection}>
                 <ThemedText type="code" style={[styles.mockSectionTitle, { color: theme.textSecondary }]}>CONTA</ThemedText>
                 <View style={styles.accountList}>
-                  <Pressable style={({ pressed }) => [styles.accountRow, { borderBottomColor: theme.border }, pressed && { opacity: 0.7 }]}>
-                    <ThemedText style={[styles.accountIcon, { color: theme.textSecondary }]}>N</ThemedText>
+                  <Pressable 
+                    onPress={() => setIsNotificationsModalVisible(true)}
+                    style={({ pressed }) => [styles.accountRow, { borderBottomColor: theme.border }, pressed && { opacity: 0.7 }]}
+                  >
+                    <ThemedText style={[styles.accountIcon, { color: theme.textSecondary }]}>🔔</ThemedText>
                     <ThemedText type="small" style={[styles.accountLabel, { color: theme.text }]}>Notificações</ThemedText>
                     <ThemedText style={{ color: theme.textSecondary }}>›</ThemedText>
                   </Pressable>
@@ -531,6 +698,14 @@ export default function ProfileScreen() {
                   >
                     <ThemedText style={[styles.accountIcon, { color: theme.textSecondary }]}>EJ</ThemedText>
                     <ThemedText type="small" style={[styles.accountLabel, { color: theme.text }]}>Minha EJ</ThemedText>
+                    <ThemedText style={{ color: theme.textSecondary }}>›</ThemedText>
+                  </Pressable>
+                  <Pressable
+                    onPress={() => setIsPasswordModalVisible(true)}
+                    style={({ pressed }) => [styles.accountRow, { borderBottomColor: theme.border }, pressed && { opacity: 0.7 }]}
+                  >
+                    <ThemedText style={[styles.accountIcon, { color: theme.textSecondary }]}>🔒</ThemedText>
+                    <ThemedText type="small" style={[styles.accountLabel, { color: theme.text }]}>Alterar Senha</ThemedText>
                     <ThemedText style={{ color: theme.textSecondary }}>›</ThemedText>
                   </Pressable>
                   <Pressable
@@ -547,156 +722,16 @@ export default function ProfileScreen() {
           </View>
 
 
-          {isEditSectionOpen && (
-          <View style={styles.sectionContainer}>
-            <ThemedText type="smallBold" style={[styles.sectionTitle, { color: theme.text }]}>
-              Editar perfil
-            </ThemedText>
-
-            <View style={[styles.optionsList, { backgroundColor: theme.backgroundElement, borderColor: theme.border, borderWidth: 1 }]}>
-
-              <View style={{ padding: Spacing.four, gap: Spacing.four }}>
-                  {/* 1. Nome Completo Card */}
-                  <View style={[styles.optionsList, { backgroundColor: theme.backgroundElement, borderColor: theme.border, borderWidth: 1, padding: Spacing.four, gap: Spacing.three }]}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: Spacing.one }}>
-                      <ThemedText style={{ fontSize: 16 }}>👤</ThemedText>
-                      <ThemedText type="smallBold" style={{ color: theme.text }}>
-                        Alterar Nome Completo
-                      </ThemedText>
-                    </View>
-                    <TextInput
-                      style={[
-                        styles.input,
-                        { backgroundColor: theme.background, borderColor: theme.border, color: theme.text }
-                      ]}
-                      placeholder="Seu nome completo"
-                      placeholderTextColor={theme.textSecondary}
-                      value={editName}
-                      onChangeText={setEditName}
-                    />
-                    <Pressable
-                      style={({ pressed }) => [
-                        styles.detailsSaveBtn,
-                        { backgroundColor: theme.primary, marginTop: Spacing.one },
-                        pressed && { opacity: 0.8 },
-                        isSavingName && { opacity: 0.6 }
-                      ]}
-                      disabled={isSavingName}
-                      onPress={handleSaveName}
-                    >
-                      <ThemedText type="smallBold" style={{ color: '#FFF', fontWeight: 'bold' }}>
-                        {isSavingName ? 'Salvando...' : 'Salvar Nome'}
-                      </ThemedText>
-                    </Pressable>
-                  </View>
-
-                  {/* 2. Nome de Usuário Card */}
-                  <View style={[styles.optionsList, { backgroundColor: theme.backgroundElement, borderColor: theme.border, borderWidth: 1, padding: Spacing.four, gap: Spacing.three }]}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: Spacing.one }}>
-                      <ThemedText style={{ fontSize: 16 }}>🌐</ThemedText>
-                      <ThemedText type="smallBold" style={{ color: theme.text }}>
-                        Alterar Nome de Usuário (@)
-                      </ThemedText>
-                    </View>
-                    <TextInput
-                      style={[
-                        styles.input,
-                        { backgroundColor: theme.background, borderColor: theme.border, color: theme.text }
-                      ]}
-                      placeholder="Ex: Lucas@123"
-                      placeholderTextColor={theme.textSecondary}
-                      autoCapitalize="none"
-                      value={editUsername}
-                      onChangeText={setEditUsername}
-                    />
-                    <StrengthIndicator text={editUsername} />
-                    <Pressable
-                      style={({ pressed }) => [
-                        styles.detailsSaveBtn,
-                        { backgroundColor: theme.primary, marginTop: Spacing.one },
-                        pressed && { opacity: 0.8 },
-                        isSavingUsername && { opacity: 0.6 }
-                      ]}
-                      disabled={isSavingUsername}
-                      onPress={handleSaveUsername}
-                    >
-                      <ThemedText type="smallBold" style={{ color: '#FFF', fontWeight: 'bold' }}>
-                        {isSavingUsername ? 'Salvando...' : 'Salvar Usuário'}
-                      </ThemedText>
-                    </Pressable>
-                  </View>
-
-                  {/* 3. Alterar Senha Card */}
-                  <View style={[styles.optionsList, { backgroundColor: theme.backgroundElement, borderColor: theme.border, borderWidth: 1, padding: Spacing.four, gap: Spacing.three }]}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: Spacing.one }}>
-                      <ThemedText style={{ fontSize: 16 }}>🔒</ThemedText>
-                      <ThemedText type="smallBold" style={{ color: theme.text }}>
-                        Alterar Senha de Acesso
-                      </ThemedText>
-                    </View>
-                    <View style={styles.inputGroup}>
-                      <ThemedText type="small" style={[styles.inputLabel, { color: theme.textSecondary, fontSize: 11 }]}>
-                        Senha Atual
-                      </ThemedText>
-                      <TextInput
-                        style={[
-                          styles.input,
-                          { backgroundColor: theme.background, borderColor: theme.border, color: theme.text }
-                        ]}
-                        placeholder="Sua senha atual"
-                        placeholderTextColor={theme.textSecondary}
-                        secureTextEntry
-                        value={currentPassword}
-                        onChangeText={setCurrentPassword}
-                      />
-                    </View>
-                    <View style={styles.inputGroup}>
-                      <ThemedText type="small" style={[styles.inputLabel, { color: theme.textSecondary, fontSize: 11 }]}>
-                        Nova Senha
-                      </ThemedText>
-                      <TextInput
-                        style={[
-                          styles.input,
-                          { backgroundColor: theme.background, borderColor: theme.border, color: theme.text }
-                        ]}
-                        placeholder="Sua nova senha"
-                        placeholderTextColor={theme.textSecondary}
-                        secureTextEntry
-                        value={newPassword}
-                        onChangeText={setNewPassword}
-                      />
-                    </View>
-                    {newPassword.length > 0 && <StrengthIndicator text={newPassword} />}
-                    <Pressable
-                      style={({ pressed }) => [
-                        styles.detailsSaveBtn,
-                        { backgroundColor: theme.primary, marginTop: Spacing.one },
-                        pressed && { opacity: 0.8 },
-                        isSavingPassword && { opacity: 0.6 }
-                      ]}
-                      disabled={isSavingPassword}
-                      onPress={handleSavePassword}
-                    >
-                      <ThemedText type="smallBold" style={{ color: '#FFF', fontWeight: 'bold' }}>
-                        {isSavingPassword ? 'Salvando...' : 'Salvar Senha'}
-                      </ThemedText>
-                    </Pressable>
-                  </View>
-                </View>
-            </View>
-          </View>
-          )}
-
           <View style={{ height: Spacing.six }} />
         </ScrollView>
       </SafeAreaView>
 
-      {/* ================= EDIT AVATAR MODAL ================= */}
+      {/* ================= EDIT PROFILE MODAL ================= */}
       <Modal
         animationType="slide"
         transparent={true}
-        visible={isAvatarModalVisible}
-        onRequestClose={() => setIsAvatarModalVisible(false)}
+        visible={isEditModalVisible}
+        onRequestClose={() => setIsEditModalVisible(false)}
       >
         <View style={styles.modalOverlay}>
           <View style={[styles.modalCard, { backgroundColor: theme.backgroundElement, borderTopColor: theme.border, borderTopWidth: 1 }]}>
@@ -708,11 +743,11 @@ export default function ProfileScreen() {
                   CUSTOMIZAÇÃO
                 </ThemedText>
                 <ThemedText type="subtitle" style={[styles.modalTitle, { color: theme.text }]}>
-                  Alterar Foto de Perfil
+                  Editar Perfil
                 </ThemedText>
               </View>
               <Pressable 
-                onPress={() => setIsAvatarModalVisible(false)}
+                onPress={() => setIsEditModalVisible(false)}
                 style={[styles.closeModalBtn, { backgroundColor: theme.background }]}
               >
                 <ThemedText type="default" style={{ color: theme.textSecondary }}>✕</ThemedText>
@@ -722,26 +757,36 @@ export default function ProfileScreen() {
             {/* Modal Scrollable Content */}
             <ScrollView style={styles.modalScroll} showsVerticalScrollIndicator={false}>
               
-              {/* Current Preview */}
-              <View style={styles.previewContainer}>
-                {selectedAvatar && PIXEL_AVATARS[selectedAvatar] ? (
-                  <Image source={PIXEL_AVATARS[selectedAvatar]} style={[styles.largePreviewImage, { borderColor: theme.primary }]} />
-                ) : selectedAvatar && (selectedAvatar.startsWith('http') || selectedAvatar.startsWith('file') || selectedAvatar.startsWith('data:image')) ? (
-                  <Image source={{ uri: selectedAvatar }} style={[styles.largePreviewImage, { borderColor: theme.primary }]} />
-                ) : (
-                  <View style={[styles.largePreviewPlaceholder, { backgroundColor: theme.background, borderColor: theme.primary }]}>
-                    <ThemedText style={{ fontSize: 50 }}>
-                      {selectedAvatar && !PIXEL_AVATARS[selectedAvatar] && !selectedAvatar.startsWith('http') ? selectedAvatar : '🎓'}
-                    </ThemedText>
+              {/* Previews and Image Selectors */}
+              <View style={{ marginBottom: Spacing.four, borderRadius: 14, overflow: 'hidden', borderWidth: 1, borderColor: theme.border }}>
+                {/* Cover Preview */}
+                <Pressable onPress={pickCoverImage} style={{ height: 120, backgroundColor: theme.background, justifyContent: 'center', alignItems: 'center', position: 'relative' }}>
+                  {selectedCover ? (
+                    <Image source={{ uri: selectedCover }} style={{ width: '100%', height: '100%', resizeMode: 'cover' }} />
+                  ) : (
+                    <ThemedText style={{ color: theme.textSecondary, fontSize: 13 }}>Sem foto de fundo. Toque para adicionar 🖼️</ThemedText>
+                  )}
+                  <View style={{ position: 'absolute', right: 8, bottom: 8, backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4 }}>
+                    <ThemedText style={{ color: '#FFF', fontSize: 10, fontWeight: 'bold' }}>Alterar Capa 📷</ThemedText>
                   </View>
-                )}
-                <ThemedText type="small" style={{ color: theme.textSecondary, marginTop: Spacing.two }}>
-                  Pré-visualização do Avatar
-                </ThemedText>
+                </Pressable>
+                
+                {/* Avatar Preview overlaying Cover */}
+                <View style={{ height: 60, alignItems: 'flex-start', paddingLeft: Spacing.four, marginTop: -35, position: 'relative', zIndex: 10 }}>
+                  <Pressable onPress={() => {}} style={{ width: 70, height: 70, borderRadius: 35, borderWidth: 3, borderColor: theme.backgroundElement, backgroundColor: theme.backgroundSelected, overflow: 'hidden', justifyContent: 'center', alignItems: 'center' }}>
+                    {selectedAvatar && PIXEL_AVATARS[selectedAvatar] ? (
+                      <Image source={PIXEL_AVATARS[selectedAvatar]} style={{ width: '100%', height: '100%' }} />
+                    ) : selectedAvatar && (selectedAvatar.startsWith('http') || selectedAvatar.startsWith('file') || selectedAvatar.startsWith('data:image')) ? (
+                      <Image source={{ uri: selectedAvatar }} style={{ width: '100%', height: '100%' }} />
+                    ) : (
+                      <ThemedText style={{ fontSize: 32 }}>🎓</ThemedText>
+                    )}
+                  </Pressable>
+                </View>
               </View>
 
               {/* Preset Selector */}
-              <View style={{ marginBottom: Spacing.four }}>
+              <View style={{ marginBottom: Spacing.four, padding: Spacing.three, backgroundColor: theme.background, borderRadius: 12, borderWidth: 1, borderColor: theme.border }}>
                 <ThemedText type="smallBold" style={[styles.sectionLabel, { color: theme.text }]}>
                   Selecione um Avatar Divertido:
                 </ThemedText>
@@ -752,7 +797,7 @@ export default function ProfileScreen() {
                       key={index}
                       style={[
                         styles.presetGridItem,
-                        { backgroundColor: theme.background, borderColor: 'transparent', overflow: 'hidden', justifyContent: 'center', alignItems: 'center' },
+                        { backgroundColor: theme.backgroundElement, borderColor: 'transparent', overflow: 'hidden', justifyContent: 'center', alignItems: 'center' },
                         selectedAvatar === avatarName && { borderColor: theme.primary, backgroundColor: theme.backgroundSelected, borderWidth: 2 }
                       ]}
                       onPress={() => setSelectedAvatar(avatarName)}
@@ -761,20 +806,57 @@ export default function ProfileScreen() {
                     </Pressable>
                   ))}
                 </View>
-              </View>
-
-              {/* Upload Button */}
-              <View style={{ marginBottom: Spacing.six }}>
-                <ThemedText type="smallBold" style={[styles.sectionLabel, { color: theme.text }]}>
-                  Ou envie uma foto personalizada:
-                </ThemedText>
                 
-                <Pressable style={[styles.galleryBtn, { backgroundColor: theme.background, borderColor: theme.border, borderWidth: 1 }]} onPress={pickImage}>
+                <Pressable style={[styles.galleryBtn, { backgroundColor: theme.backgroundElement, borderColor: theme.border, borderWidth: 1, marginTop: Spacing.three }]} onPress={pickImage}>
                   <ThemedText type="smallBold" style={{ color: theme.text }}>
-                    📸 Escolher Foto da Galeria
+                    📸 Enviar Foto da Galeria
                   </ThemedText>
                 </Pressable>
               </View>
+
+              {/* Nome Completo Card */}
+              <View style={{ padding: Spacing.three, backgroundColor: theme.background, borderRadius: 12, borderWidth: 1, borderColor: theme.border, gap: Spacing.three, marginBottom: Spacing.four }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <ThemedText style={{ fontSize: 16 }}>👤</ThemedText>
+                  <ThemedText type="smallBold" style={{ color: theme.text }}>
+                    Nome Completo
+                  </ThemedText>
+                </View>
+                <TextInput
+                  style={[
+                    styles.input,
+                    { backgroundColor: theme.backgroundElement, borderColor: theme.border, color: theme.text }
+                  ]}
+                  placeholder="Seu nome completo"
+                  placeholderTextColor={theme.textSecondary}
+                  value={editName}
+                  onChangeText={setEditName}
+                />
+              </View>
+
+              {/* Nome de Usuário Card */}
+              <View style={{ padding: Spacing.three, backgroundColor: theme.background, borderRadius: 12, borderWidth: 1, borderColor: theme.border, gap: Spacing.three, marginBottom: Spacing.four }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <ThemedText style={{ fontSize: 16 }}>🌐</ThemedText>
+                  <ThemedText type="smallBold" style={{ color: theme.text }}>
+                    Nome de Usuário (@)
+                  </ThemedText>
+                </View>
+                <TextInput
+                  style={[
+                    styles.input,
+                    { backgroundColor: theme.backgroundElement, borderColor: theme.border, color: theme.text }
+                  ]}
+                  placeholder="Ex: Lucas@123"
+                  placeholderTextColor={theme.textSecondary}
+                  autoCapitalize="none"
+                  value={editUsername}
+                  onChangeText={setEditUsername}
+                />
+                <StrengthIndicator text={editUsername} />
+              </View>
+
+
 
             </ScrollView>
 
@@ -785,7 +867,10 @@ export default function ProfileScreen() {
                   style={[styles.cancelBtn, { backgroundColor: theme.background, borderColor: theme.border, borderWidth: 1 }]}
                   onPress={() => {
                     setSelectedAvatar(session?.avatar || '');
-                    setIsAvatarModalVisible(false);
+                    setSelectedCover(session?.coverImage || '');
+                    setEditName(session?.name || '');
+                    setEditUsername(session?.username || '');
+                    setIsEditModalVisible(false);
                   }}
                 >
                   <ThemedText type="smallBold" style={{ color: theme.textSecondary }}>Cancelar</ThemedText>
@@ -793,15 +878,289 @@ export default function ProfileScreen() {
                 
                 <Pressable 
                   style={[styles.saveBtn, { backgroundColor: theme.primary }]}
-                  onPress={handleSaveAvatar}
+                  disabled={isSavingDetails}
+                  onPress={handleSaveProfile}
                 >
-                  <ThemedText type="smallBold" style={{ color: '#FFF' }}>Salvar Foto</ThemedText>
+                  <ThemedText type="smallBold" style={{ color: '#FFF' }}>
+                    {isSavingDetails ? 'Salvando...' : 'Salvar Alterações'}
+                  </ThemedText>
                 </Pressable>
               </View>
             </View>
 
           </View>
         </View>
+      </Modal>
+
+      {/* ================= EDIT PASSWORD MODAL ================= */}
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={isPasswordModalVisible}
+        onRequestClose={() => {
+          setCurrentPassword('');
+          setNewPassword('');
+          setIsPasswordModalVisible(false);
+        }}
+      >
+        <View style={styles.centeredModalOverlay}>
+          <View style={[styles.centeredModalCard, { backgroundColor: theme.backgroundElement, borderColor: theme.border, height: 'auto', maxHeight: '90%' }]}>
+            
+            {/* Modal Header */}
+            <View style={[styles.modalHeader, { borderBottomColor: theme.border, borderBottomWidth: 1 }]}>
+              <View>
+                <ThemedText type="code" style={{ color: theme.primary }}>
+                  SEGURANÇA
+                </ThemedText>
+                <ThemedText type="subtitle" style={[styles.modalTitle, { color: theme.text }]}>
+                  Alterar Senha
+                </ThemedText>
+              </View>
+              <Pressable 
+                onPress={() => {
+                  setCurrentPassword('');
+                  setNewPassword('');
+                  setIsPasswordModalVisible(false);
+                }}
+                style={[styles.closeModalBtn, { backgroundColor: theme.background }]}
+              >
+                <ThemedText type="default" style={{ color: theme.textSecondary }}>✕</ThemedText>
+              </Pressable>
+            </View>
+
+            {/* Modal Scrollable Content */}
+            <ScrollView style={styles.modalScroll} contentContainerStyle={{ paddingVertical: Spacing.four }} showsVerticalScrollIndicator={false}>
+              
+              <View style={{ padding: Spacing.four, backgroundColor: theme.background, borderRadius: 16, borderWidth: 1, borderColor: theme.border, gap: Spacing.four, marginBottom: Spacing.five }}>
+                <View style={styles.inputGroup}>
+                  <ThemedText type="small" style={[styles.inputLabel, { color: theme.textSecondary, fontSize: 13, marginBottom: 8 }]}>
+                    Senha Atual
+                  </ThemedText>
+                  <TextInput
+                    style={[
+                      styles.input,
+                      { backgroundColor: theme.backgroundElement, borderColor: theme.border, color: theme.text, paddingVertical: Spacing.four, fontSize: 16 }
+                    ]}
+                    placeholder="Sua senha atual"
+                    placeholderTextColor={theme.textSecondary}
+                    secureTextEntry
+                    value={currentPassword}
+                    onChangeText={setCurrentPassword}
+                  />
+                </View>
+                <View style={styles.inputGroup}>
+                  <ThemedText type="small" style={[styles.inputLabel, { color: theme.textSecondary, fontSize: 13, marginBottom: 8 }]}>
+                    Nova Senha
+                  </ThemedText>
+                  <TextInput
+                    style={[
+                      styles.input,
+                      { backgroundColor: theme.backgroundElement, borderColor: theme.border, color: theme.text, paddingVertical: Spacing.four, fontSize: 16 }
+                    ]}
+                    placeholder="Sua nova senha"
+                    placeholderTextColor={theme.textSecondary}
+                    secureTextEntry
+                    value={newPassword}
+                    onChangeText={setNewPassword}
+                  />
+                </View>
+                {newPassword.length > 0 && <StrengthIndicator text={newPassword} />}
+              </View>
+
+            </ScrollView>
+
+            {/* Modal Footer */}
+            <View style={[styles.modalFooter, { borderTopColor: theme.border, borderTopWidth: 1 }]}>
+              <View style={styles.modalFooterActions}>
+                <Pressable 
+                  style={[styles.cancelBtn, { backgroundColor: theme.background, borderColor: theme.border, borderWidth: 1 }]}
+                  onPress={() => {
+                    setCurrentPassword('');
+                    setNewPassword('');
+                    setIsPasswordModalVisible(false);
+                  }}
+                >
+                  <ThemedText type="smallBold" style={{ color: theme.textSecondary }}>Cancelar</ThemedText>
+                </Pressable>
+                
+                <Pressable 
+                  style={[styles.saveBtn, { backgroundColor: theme.primary }]}
+                  disabled={isSavingPassword}
+                  onPress={handleSavePassword}
+                >
+                  <ThemedText type="smallBold" style={{ color: '#FFF' }}>
+                    {isSavingPassword ? 'Salvando...' : 'Atualizar Senha'}
+                  </ThemedText>
+                </Pressable>
+              </View>
+            </View>
+
+          </View>
+        </View>
+      </Modal>
+
+      {/* ================= NOTIFICATIONS MODAL ================= */}
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={isNotificationsModalVisible}
+        onRequestClose={() => setIsNotificationsModalVisible(false)}
+      >
+        <View style={styles.centeredModalOverlay}>
+          <View style={[styles.centeredModalCard, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
+            
+            {/* Modal Header */}
+            <View style={[styles.modalHeader, { borderBottomColor: theme.border, borderBottomWidth: 1, paddingBottom: Spacing.four }]}>
+              <View>
+                <ThemedText type="code" style={{ color: theme.primary, fontSize: 11 }}>
+                  CENTRAL DE ALERTAS
+                </ThemedText>
+                <ThemedText type="subtitle" style={[styles.modalTitle, { color: theme.text, marginTop: 4 }]}>
+                  Notificações
+                </ThemedText>
+              </View>
+              <Pressable 
+                onPress={() => setIsNotificationsModalVisible(false)}
+                style={[styles.closeModalBtn, { backgroundColor: theme.background, width: 36, height: 36, borderRadius: 18 }]}
+              >
+                <ThemedText type="default" style={{ color: theme.textSecondary }}>✕</ThemedText>
+              </Pressable>
+            </View>
+
+            {/* Modal Content */}
+            <ScrollView style={styles.modalScroll} contentContainerStyle={{ paddingVertical: Spacing.four }} showsVerticalScrollIndicator={false}>
+              
+              {notifications.length === 0 ? (
+                <View style={{ padding: Spacing.six, alignItems: 'center', justifyContent: 'center' }}>
+                  <Text style={{ fontSize: 48, marginBottom: Spacing.two }}>📭</Text>
+                  <ThemedText type="smallBold" style={{ color: theme.textSecondary }}>Nenhuma notificação encontrada</ThemedText>
+                </View>
+              ) : (
+                <View style={{ gap: Spacing.three }}>
+                  {notifications.map((item) => (
+                    <Pressable
+                      key={item.id}
+                      onPress={() => toggleNotificationRead(item.id)}
+                      style={[
+                        styles.notificationCard,
+                        { 
+                          backgroundColor: item.read ? theme.background : theme.backgroundSelected,
+                          borderColor: item.read ? theme.border : theme.primary,
+                        }
+                      ]}
+                    >
+                      <View style={[styles.notificationIconWrap, { backgroundColor: theme.backgroundElement }]}>
+                        <Text style={{ fontSize: 20 }}>{item.icon}</Text>
+                      </View>
+                      <View style={{ flex: 1, gap: 2 }}>
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <ThemedText type="smallBold" style={{ color: theme.text }}>
+                            {item.title}
+                          </ThemedText>
+                          {!item.read && (
+                            <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: theme.primary }} />
+                          )}
+                        </View>
+                        <ThemedText type="small" style={{ color: theme.textSecondary, fontSize: 13 }}>
+                          {item.message}
+                        </ThemedText>
+                        <ThemedText type="small" style={{ color: theme.textSecondary, fontSize: 10, marginTop: 4 }}>
+                          {item.time}
+                        </ThemedText>
+                      </View>
+                    </Pressable>
+                  ))}
+                </View>
+              )}
+
+            </ScrollView>
+
+            {/* Modal Footer */}
+            {notifications.length > 0 && (
+              <View style={[styles.modalFooter, { borderTopColor: theme.border, borderTopWidth: 1, paddingVertical: Spacing.four }]}>
+                <View style={styles.modalFooterActions}>
+                  <Pressable 
+                    style={[styles.cancelBtn, { backgroundColor: theme.background, borderColor: theme.border, borderWidth: 1 }]}
+                    onPress={clearAllNotifications}
+                  >
+                    <ThemedText type="smallBold" style={{ color: theme.textSecondary }}>Limpar Todas</ThemedText>
+                  </Pressable>
+                  <Pressable 
+                    style={[styles.saveBtn, { backgroundColor: theme.primary }]}
+                    onPress={markAllAsRead}
+                  >
+                    <ThemedText type="smallBold" style={{ color: '#FFF' }}>Lidas ✓</ThemedText>
+                  </Pressable>
+                </View>
+              </View>
+            )}
+
+          </View>
+        </View>
+      </Modal>
+
+      {/* ================= AVATAR PREVIEW/ZOOM MODAL ================= */}
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={isAvatarPreviewVisible}
+        onRequestClose={() => setIsAvatarPreviewVisible(false)}
+      >
+        <Pressable 
+          style={styles.zoomModalOverlay} 
+          onPress={() => setIsAvatarPreviewVisible(false)}
+        >
+          <View style={styles.zoomModalContent}>
+            {session?.avatar && PIXEL_AVATARS[session.avatar] ? (
+              <Image source={PIXEL_AVATARS[session.avatar]} style={styles.zoomAvatarImage} resizeMode="contain" />
+            ) : session?.avatar && (session.avatar.startsWith('http') || session.avatar.startsWith('file') || session.avatar.startsWith('data:image')) ? (
+              <Image source={{ uri: session.avatar }} style={styles.zoomAvatarImage} resizeMode="contain" />
+            ) : (
+              <View style={[styles.largePreviewPlaceholder, { width: 280, height: 280, borderRadius: 140, backgroundColor: theme.backgroundElement, borderColor: theme.primary, borderWidth: 3 }]}>
+                <ThemedText style={{ fontSize: 120 }}>
+                  {session?.avatar && !PIXEL_AVATARS[session.avatar] && !session.avatar.startsWith('http') ? session.avatar : '🎓'}
+                </ThemedText>
+              </View>
+            )}
+            
+            <Pressable 
+              onPress={() => setIsAvatarPreviewVisible(false)}
+              style={[styles.closeModalBtn, { position: 'absolute', top: 40, right: 20, width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(0,0,0,0.5)' }]}
+            >
+              <ThemedText type="subtitle" style={{ color: '#FFF' }}>✕</ThemedText>
+            </Pressable>
+          </View>
+        </Pressable>
+      </Modal>
+
+      {/* ================= COVER PREVIEW/ZOOM MODAL ================= */}
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={isCoverPreviewVisible}
+        onRequestClose={() => setIsCoverPreviewVisible(false)}
+      >
+        <Pressable 
+          style={styles.zoomModalOverlay} 
+          onPress={() => setIsCoverPreviewVisible(false)}
+        >
+          <View style={styles.zoomModalContent}>
+            {session?.coverImage ? (
+              <Image source={{ uri: session.coverImage }} style={styles.zoomCoverImage} resizeMode="contain" />
+            ) : (
+              <View style={[styles.largePreviewPlaceholder, { width: 320, height: 180, backgroundColor: theme.backgroundElement, borderColor: theme.primary, borderWidth: 3, justifyContent: 'center', alignItems: 'center' }]}>
+                <ThemedText style={{ color: theme.textSecondary }}>Sem foto de fundo</ThemedText>
+              </View>
+            )}
+            
+            <Pressable 
+              onPress={() => setIsCoverPreviewVisible(false)}
+              style={[styles.closeModalBtn, { position: 'absolute', top: 40, right: 20, width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(0,0,0,0.5)' }]}
+            >
+              <ThemedText type="subtitle" style={{ color: '#FFF' }}>✕</ThemedText>
+            </Pressable>
+          </View>
+        </Pressable>
       </Modal>
 
     </ThemedView>
@@ -842,10 +1201,17 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
   },
   profileAvatarButton: {
-    marginTop: -64,
     marginLeft: Spacing.four,
     width: 112,
     height: 112,
+  },
+  shareIconButton: {
+    borderWidth: 1,
+    borderRadius: 999,
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   profileAvatarLarge: {
     width: 112,
@@ -1372,6 +1738,65 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 7,
     borderRadius: 9,
+    alignItems: 'center',
+  },
+  centeredModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: Spacing.four,
+  },
+  centeredModalCard: {
+    width: '95%',
+    maxWidth: 680,
+    minHeight: 520,
+    borderRadius: 24,
+    borderWidth: 1,
+    paddingTop: Spacing.four,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.25,
+    shadowRadius: 15,
+    elevation: 10,
+  },
+  zoomModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.9)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  zoomModalContent: {
+    width: '90%',
+    aspectRatio: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'relative',
+  },
+  zoomAvatarImage: {
+    width: 320,
+    height: 320,
+    borderRadius: 160,
+  },
+  zoomCoverImage: {
+    width: '100%',
+    aspectRatio: 16 / 9,
+  },
+  notificationCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.three,
+    borderWidth: 1,
+    borderRadius: 14,
+    padding: Spacing.three,
+    marginVertical: 4,
+  },
+  notificationIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
     alignItems: 'center',
   },
 });

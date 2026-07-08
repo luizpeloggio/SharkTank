@@ -35,6 +35,7 @@ export default function CompanyMembersScreen() {
   const [userIndex, setUserIndex] = useState<Record<string, { email: string; name?: string }>>({});
  
   const [addEmail, setAddEmail] = useState('');
+  const [addTitle, setAddTitle] = useState('');
   const [isAdding, setIsAdding] = useState(false);
  
   const title = useMemo(() => company?.name ?? 'Empresa', [company?.name]);
@@ -68,6 +69,24 @@ export default function CompanyMembersScreen() {
     const normalized = addEmail.toLowerCase().trim();
     if (!normalized) return;
 
+    const cargo = addTitle.trim();
+    if (!cargo) {
+      const msg = 'O cargo do membro é obrigatório.';
+      if (Platform.OS === 'web') alert(msg);
+      else Alert.alert('Erro', msg);
+      return;
+    }
+
+    let finalTitle = cargo;
+    const lowerTitle = cargo.toLowerCase();
+    const isPresidentOrDirector = lowerTitle.includes('presidente') || lowerTitle.includes('diretor') || lowerTitle.includes('líder') || lowerTitle.includes('lider');
+    
+    if (!isPresidentOrDirector) {
+      if (!lowerTitle.startsWith('desenvolvedor') && !lowerTitle.startsWith('desenvolvedora')) {
+        finalTitle = `Desenvolvedor de ${cargo}`;
+      }
+    }
+
     setIsAdding(true);
     try {
       const user = await AppStorage.findUserByEmail(normalized);
@@ -83,9 +102,11 @@ export default function CompanyMembersScreen() {
         userId: user.id,
         role: 'member',
         status: 'active',
+        title: finalTitle,
         createdAt: Date.now(),
       });
       setAddEmail('');
+      setAddTitle('');
       await load();
     } finally {
       setIsAdding(false);
@@ -105,14 +126,14 @@ export default function CompanyMembersScreen() {
             {title}
           </ThemedText>
           <ThemedText type="small" style={{ color: theme.textSecondary, marginTop: 4 }}>
-            {isLeader ? 'Você pode gerenciar membros.' : 'Apenas líderes podem gerenciar membros.'}
+            {isLeader ? 'Você é o Presidente desta EJ. Você pode gerenciar membros.' : 'Apenas o Presidente da EJ pode gerenciar membros.'}
           </ThemedText>
         </View>
 
         {isLeader && (
           <View style={[styles.card, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
             <ThemedText type="smallBold" style={{ color: theme.textSecondary }}>
-              Adicionar membro por e-mail
+              Adicionar membro
             </ThemedText>
             <TextInput
               value={addEmail}
@@ -122,6 +143,16 @@ export default function CompanyMembersScreen() {
               autoCapitalize="none"
               style={[styles.input, { backgroundColor: theme.background, borderColor: theme.border, color: theme.text }]}
             />
+            <TextInput
+              value={addTitle}
+              onChangeText={setAddTitle}
+              placeholder="Cargo (ex: Presidente da Diretoria de Marketing, Frontend)"
+              placeholderTextColor={theme.textSecondary}
+              style={[styles.input, { backgroundColor: theme.background, borderColor: theme.border, color: theme.text, marginTop: Spacing.two }]}
+            />
+            <ThemedText type="small" style={{ color: theme.textSecondary, fontSize: 11, marginTop: 8 }}>
+              * Obrigatório. Se não for cargo de presidente/diretor/líder, será salvo como "Desenvolvedor de [Cargo]".
+            </ThemedText>
             <Pressable
               disabled={isAdding}
               style={({ pressed }) => [
@@ -155,9 +186,9 @@ export default function CompanyMembersScreen() {
                   {item.email}
                 </ThemedText>
               </View>
-              <View style={[styles.badge, { backgroundColor: theme.backgroundSelected, borderColor: theme.border }]}>
-                <ThemedText type="code" style={{ color: theme.primary, fontSize: 10, fontWeight: 'bold' }}>
-                  {item.membership.role.toUpperCase()}
+              <View style={[styles.badge, { backgroundColor: theme.backgroundSelected, borderColor: theme.border, maxWidth: '50%' }]}>
+                <ThemedText type="code" style={{ color: theme.primary, fontSize: 9, fontWeight: 'bold' }} numberOfLines={1}>
+                  {(item.membership.title || (item.membership.role === 'leader' ? 'Presidente' : 'Membro')).toUpperCase()}
                 </ThemedText>
               </View>
             </View>

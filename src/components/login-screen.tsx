@@ -727,8 +727,18 @@ export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
       return;
     }
 
-    if (!isStrengthValid(username)) {
-      setErrorMessage('O Nome de Usuário deve conter letras maiúsculas, minúsculas, números e caracteres especiais.');
+    const userTrimmed = username.trim();
+    if (!userTrimmed.startsWith('@')) {
+      setErrorMessage('O Nome de Usuário deve começar com "@" (ex: @exemplo123).');
+      return;
+    }
+
+    const hasUpper = /[A-Z]/.test(userTrimmed);
+    const hasLower = /[a-z]/.test(userTrimmed);
+    const hasDigit = /[0-9]/.test(userTrimmed);
+    const hasSpecial = /[!@#$%^&*(),.?":{}|<>]/.test(userTrimmed);
+    if (!hasUpper || !hasLower || !hasDigit || !hasSpecial) {
+      setErrorMessage('O Nome de Usuário deve conter letra maiúscula, letras minúsculas, números e caracteres especiais.');
       return;
     }
 
@@ -740,6 +750,18 @@ export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
     setIsLoading(true);
     setErrorMessage('');
     setSuccessMessage('');
+
+    try {
+      const usersList = await AppStorage.getUsers();
+      const isTaken = usersList.some(u => u.username?.toLowerCase().trim() === userTrimmed.toLowerCase());
+      if (isTaken) {
+        setIsLoading(false);
+        setErrorMessage('Este nome de usuário já está em uso por outra pessoa.');
+        return;
+      }
+    } catch (e) {
+      console.error(e);
+    }
 
     setTimeout(async () => {
       try {

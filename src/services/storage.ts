@@ -125,6 +125,7 @@ export interface UserSession {
   username?: string;
   role: UserRole;
   avatar?: string;
+  coverImage?: string;
 }
 
 export interface RegisteredUser {
@@ -135,6 +136,7 @@ export interface RegisteredUser {
   username?: string;
   role: UserRole;
   avatar?: string;
+  coverImage?: string;
   provider: 'email' | 'google' | 'apple';
 }
 
@@ -561,6 +563,20 @@ export const AppStorage = {
       const ensured = session.id ? session : { ...session, id: (await this.findUserByEmail(session.email))?.id ?? 'temp' };
       await AsyncStorage.setItem(KEYS.SESSION, JSON.stringify(ensured));
       await this.setRole(session.role);
+
+      // Also update the registered user record in KEYS.USERS to keep them in sync!
+      const users = await this.getUsers();
+      const index = users.findIndex(u => u.id === ensured.id || u.email.toLowerCase().trim() === ensured.email.toLowerCase().trim());
+      if (index >= 0) {
+        users[index] = {
+          ...users[index],
+          name: ensured.name,
+          username: ensured.username,
+          avatar: ensured.avatar,
+          coverImage: ensured.coverImage,
+        };
+        await this.saveUsers(users);
+      }
     } catch (e) {
       console.error('Error saving session', e);
     }

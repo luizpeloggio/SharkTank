@@ -4,8 +4,10 @@ export type MembershipStatus = 'active' | 'invited' | 'removed';
 export interface Company {
   id: string;
   name: string;
+  username?: string;
   description?: string;
   avatar?: string;
+  coverImage?: string;
   /**
    * Institucional: badges/tags livres editáveis pela empresa.
    * (Não confundir com conquistas do sistema.)
@@ -29,6 +31,7 @@ export interface CompanyMembership {
   userId: string;
   role: CompanyRole;
   status: MembershipStatus;
+  title?: string;
   createdAt: number;
 }
 
